@@ -23,6 +23,29 @@ function Require-Command([string]$Name) {
     }
 }
 
+function Test-NativeCommandSuccess {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Command,
+
+        [Parameter(Mandatory=$true)]
+        [string[]]$Arguments
+    )
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        # Expected "not found" probes from native CLIs write to stderr and return
+        # a non-zero exit code. In Windows PowerShell 5.1, ErrorActionPreference
+        # = Stop can turn that stderr into a terminating NativeCommandError.
+        $ErrorActionPreference = 'Continue'
+        & $Command @Arguments 2>$null | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
 Require-Command -Name 'git'
 Require-Command -Name 'gh'
 
@@ -64,8 +87,9 @@ try {
     if (-not (Test-Path $zip)) { throw "Missing release ZIP: $zip" }
     if (-not (Test-Path $hash)) { throw "Missing SHA256 file: $hash" }
 
-    & gh repo view $fullRepo --json nameWithOwner 2>$null | Out-Null
-    $repoExists = ($LASTEXITCODE -eq 0)
+    $repoExists = Test-NativeCommandSuccess -Command 'gh' -Arguments @(
+        'repo', 'view', $fullRepo, '--json', 'nameWithOwner'
+    )
 
     if (-not $repoExists) {
         Write-Host "Creating public repository $fullRepo..." -ForegroundColor Cyan
@@ -74,9 +98,10 @@ try {
     }
     else {
         Write-Host "Repository $fullRepo already exists; pushing main..." -ForegroundColor Yellow
-        $origin = (& git remote get-url origin 2>$null)
-        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($origin -join ''))) {
+        $remotes = @(& git remote)
+        if ($remotes -notcontains 'origin') {
             & git remote add origin "https://github.com/$fullRepo.git"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not add origin remote.' }
         }
         & git push -u origin main
         if ($LASTEXITCODE -ne 0) { throw 'Push to GitHub failed.' }
@@ -103,8 +128,10 @@ try {
     & gh repo edit $fullRepo --enable-issues --enable-wiki=false --delete-branch-on-merge | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Could not apply repository settings.' }
 
-    & gh release view $tag --repo $fullRepo 2>$null | Out-Null
-    if ($LASTEXITCODE -eq 0) {
+    $releaseExists = Test-NativeCommandSuccess -Command 'gh' -Arguments @(
+        'release', 'view', $tag, '--repo', $fullRepo
+    )
+    if ($releaseExists) {
         throw "Release $tag already exists on $fullRepo. Refusing to create a duplicate release."
     }
 
