@@ -1,0 +1,19 @@
+{
+  "version": "0.1.0",
+  "locale": "en",
+  "desktop": {
+    "enabled": true
+  },
+  "mobile": {
+    "enabled": true,
+    "provider": "ntfy",
+    "server": "https://ntfy.sh",
+    "topic": "agentchime-use-a-long-random-topic"
+  },
+  "privacy": {
+    "sendProjectName": true,
+    "sendPrompt": false,
+    "sendCode": false,
+    "sendAssistantOutput": false
+  }
+}
