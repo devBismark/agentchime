@@ -1,130 +1,123 @@
-# AgentChime
+<p align="center">
+  <img src="assets/agentchime-hero.png" alt="AgentChime — Windows and mobile notifications for AI coding agents" width="100%" />
+</p>
 
-**Stop watching your terminal.**
+<h1 align="center">AgentChime</h1>
 
-AgentChime notifies you on Windows — and optionally on your phone — when an AI coding agent finishes, needs your attention, or stops because of an error.
+<p align="center">
+  <strong>Stop watching your terminal.</strong><br />
+  Windows + mobile notifications when your AI coding agent finishes, needs attention, or fails.
+</p>
 
-> **v0.1.0** — Claude Code + Windows + ntfy mobile notifications.
+<p align="center">
+  <a href="https://github.com/devBismark/agentchime/releases/tag/v0.1.0"><img alt="Release" src="https://img.shields.io/badge/release-v0.1.0-10d9e8?style=for-the-badge"></a>
+  <a href="https://github.com/devBismark/agentchime/actions/workflows/powershell.yml"><img alt="PowerShell validation" src="https://img.shields.io/github/actions/workflow/status/devBismark/agentchime/powershell.yml?style=for-the-badge&label=validation"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-7c5cff?style=for-the-badge"></a>
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-10d9e8?style=for-the-badge&logo=windows11&logoColor=white">
+  <img alt="PowerShell" src="https://img.shields.io/badge/PowerShell-5.1%2B-0b6bcb?style=for-the-badge&logo=powershell&logoColor=white">
+</p>
 
-AgentChime is an open-source **IDISTØPIC LABS** microtool: small software for real workflow friction.
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#mobile-notifications">Mobile</a> ·
+  <a href="#privacy-first">Privacy</a> ·
+  <a href="#commands">Commands</a> ·
+  <a href="docs/ROADMAP.md">Roadmap</a>
+</p>
+
+---
+
+## The problem
+
+AI coding agents can work for minutes — sometimes much longer. The annoying part is not the wait itself; it is repeatedly checking the terminal to see whether the agent finished, failed, or is waiting for you.
+
+**AgentChime makes the agent call you back.**
 
 ```text
 Claude Code
-    |
-    +-- finished --------> Windows + phone
-    +-- needs attention -> Windows + phone
-    +-- API failure ------> Windows + phone
+     │
+     ├── finished ────────────────┐
+     ├── needs attention ─────────┼──> AgentChime ──> Windows notification
+     └── API / model failure ─────┘              └──> Mobile push (optional)
 ```
 
-## Why AgentChime exists
+Built from a real workflow annoyance, validated on Windows with Claude Code, then packaged as an open-source microtool.
 
-Agentic coding runs can take minutes or hours. Checking the terminal every few minutes wastes attention. AgentChime lets the agent call you back instead.
+---
 
-The first version was built from a real annoyance, tested on an actual Claude Code workflow, and then packaged as a reusable open-source tool.
+## What you get
 
-## What it does
+| | Capability | What it means |
+|---|---|---|
+| ✅ | **Task finished** | Get notified as soon as Claude finishes the turn. |
+| ⚠️ | **Needs attention** | Know when Claude needs permission or input. |
+| ❌ | **Task failed** | Get an alert when the turn stops because of an API/model/service failure. |
+| 🖥️ | **Native Windows alerts** | Desktop notification + sound, no extra notification framework required. |
+| 📱 | **Optional mobile push** | Receive the same status on your phone through ntfy. |
+| 🔒 | **Privacy first** | No prompt, source code, secrets, or Claude response is sent to mobile. |
+| 🧰 | **No runtime stack** | No Python, Node.js, npm package, or PowerShell module required. |
+| 🩺 | **Built-in diagnostics** | `doctor`, `status`, test commands, backups, and safe uninstall. |
 
-- Native Windows notification + sound
-- Optional mobile push through [ntfy](https://ntfy.sh/)
-- No Python, Node.js, npm package, or PowerShell module required
-- Global Claude Code hooks across projects
-- `finished`, `attention`, and `error` states
-- Automatic backup before editing `~/.claude/settings.json`
-- Idempotent reinstall: no duplicate AgentChime hooks
-- Preserves existing unrelated Claude hooks
-- `status`, `doctor`, and test commands
-- Clean uninstall
-- English and Brazilian Portuguese messages
-- Mobile payloads do not include prompts, code, secrets, or Claude output
+---
 
-## Requirements
+## Quick start
 
-- Windows 10/11
-- Windows PowerShell 5.1+ or PowerShell 7+
-- Claude Code with hook support
-- Optional: ntfy Android/iOS app for phone notifications
+### Windows only
 
-AgentChime uses Claude Code lifecycle hooks such as `Stop`, `StopFailure`, and `Notification`. See the official hook documentation:
-
-https://code.claude.com/docs/en/hooks
-
-## Quick install
-
-AgentChime PowerShell files are currently unsigned. The commands below use `ExecutionPolicy Bypass` **only for the installer process**; they do not permanently change your Windows execution policy.
-
-### Desktop only
+Open PowerShell and run:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$s=(Invoke-RestMethod 'https://raw.githubusercontent.com/devBismark/agentchime/main/bootstrap.ps1'); & ([ScriptBlock]::Create([string]$s))"
 ```
 
-### Desktop + mobile, Portuguese
+### Windows + mobile notifications
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$s=(Invoke-RestMethod 'https://raw.githubusercontent.com/devBismark/agentchime/main/bootstrap.ps1'); & ([ScriptBlock]::Create([string]$s)) -EnableMobile"
+```
+
+### Windows + mobile + Portuguese
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$s=(Invoke-RestMethod 'https://raw.githubusercontent.com/devBismark/agentchime/main/bootstrap.ps1'); & ([ScriptBlock]::Create([string]$s)) -EnableMobile -Locale pt-BR"
 ```
 
-When mobile is enabled, AgentChime creates a long random ntfy topic unless you provide one. Subscribe to the **exact** topic printed by the installer in the ntfy mobile app.
+> AgentChime's PowerShell scripts are currently unsigned. `ExecutionPolicy Bypass` above applies only to that installer process; it does **not** permanently change your Windows execution policy.
 
-> Prefer to review code before running it? Clone/download the repository and use the local install below.
+After installation, open a **new Claude Code session**. That is it.
 
-## Local / reviewed install
+---
 
-From the repository folder:
+## How it works
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+AgentChime registers global Claude Code lifecycle hooks in:
+
+```text
+~/.claude/settings.json
 ```
 
-Desktop + mobile:
+Those hooks call the notifier installed at:
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -EnableMobile
+```text
+~/.agentchime/notify.ps1
 ```
 
-Brazilian Portuguese + mobile:
+| AgentChime state | Claude Code hook | Trigger |
+|---|---|---|
+| `finished` | `Stop` | Claude finishes the turn normally. |
+| `attention` | `Notification` | Claude needs permission, background input, or MCP elicitation. |
+| `error` | `StopFailure` | The turn stops because of an API/model/service failure. |
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -EnableMobile -Locale pt-BR
-```
+AgentChime intentionally does **not** map `idle_prompt` to the attention state. `Stop` already sends the completion alert, and mapping both can create a delayed duplicate notification.
 
-### Pre-release tester migration
+Existing unrelated Claude hooks are preserved. AgentChime also backs up Claude settings before modifying them and avoids duplicate AgentChime handlers on reinstall.
 
-If you tested the pre-publication TaskChime build, migrate it explicitly:
+---
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -MigrateTaskChime
-```
+## Verify your installation
 
-AgentChime reuses that build's locale, mobile state, ntfy server/topic, and project-name privacy setting, removes only hooks targeting the old notifier path, and **does not delete** `~/.taskchime`. The explicit flag prevents AgentChime from touching unrelated software that happens to use the historical TaskChime name.
-
-### Migrate the original prototype
-
-If you used the early prototype under `~/.claude/hooks/notify.ps1`:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -EnableMobile -Locale pt-BR -MigratePrototype
-```
-
-AgentChime can reuse the prototype's ntfy topic and removes only the old prototype handlers.
-
-### Keep a specific ntfy topic
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -EnableMobile -NtfyTopic "your-existing-topic"
-```
-
-### Disable mobile without losing the rest of AgentChime
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -DisableMobile
-```
-
-Reinstalling without mobile/locale flags preserves the existing AgentChime configuration.
-
-## Verify the install
-
-Run:
+From the AgentChime repository folder:
 
 ```powershell
 .\agentchime.ps1 doctor
@@ -141,7 +134,7 @@ AgentChime doctor
 Doctor result: PASS
 ```
 
-Then test all states:
+Test each state manually:
 
 ```powershell
 .\agentchime.ps1 test finished
@@ -149,7 +142,7 @@ Then test all states:
 .\agentchime.ps1 test error
 ```
 
-For the real end-to-end test, open a **new Claude Code session**, submit a short request, and leave the terminal. When Claude finishes, AgentChime should notify you automatically.
+For a true end-to-end test, open a new Claude Code session, send a short request, and leave the terminal. AgentChime should notify you when Claude finishes.
 
 You can also inspect Claude's registered hooks with:
 
@@ -157,65 +150,57 @@ You can also inspect Claude's registered hooks with:
 /hooks
 ```
 
-## What triggers each alert?
+---
 
-| AgentChime | Claude Code hook | Meaning |
-|---|---|---|
-| `finished` | `Stop` | Claude finished the turn |
-| `error` | `StopFailure` | The turn ended because of an API/model/service failure |
-| `attention` | `Notification` | Claude needs permission, background-session input, or an MCP elicitation |
+## Mobile notifications
 
-AgentChime intentionally does not map `idle_prompt` to attention because `Stop` already sends completion; mapping both can create a duplicate notification later.
-
-## Mobile with ntfy
-
-AgentChime publishes directly to ntfy over HTTP; the ntfy CLI is not required.
+AgentChime uses [ntfy](https://ntfy.sh/) for optional mobile push. The ntfy CLI is **not** required.
 
 1. Install the ntfy app on Android or iOS.
 2. Install AgentChime with `-EnableMobile`.
-3. Subscribe to the exact server/topic shown by the installer.
-4. Run `agentchime.ps1 test finished`.
+3. The installer prints a long random topic.
+4. Subscribe to that **exact** topic in the ntfy app.
+5. Run:
 
-ntfy publishing documentation: https://docs.ntfy.sh/publish/
+```powershell
+.\agentchime.ps1 test finished
+```
 
-ntfy phone guide: https://docs.ntfy.sh/subscribe/phone/
+To inspect your current mobile configuration:
 
-## Privacy
+```powershell
+.\agentchime.ps1 mobile
+```
 
-With public `ntfy.sh`, AgentChime sends only minimal status context:
+If desktop notifications work but mobile does not, compare the topic shown by AgentChime with the topic in the ntfy app **character by character**.
+
+More details: [Mobile guide](docs/MOBILE.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
+
+---
+
+## Privacy first
+
+When using public `ntfy.sh`, AgentChime sends only minimal status context:
+
+**May be sent**
 
 - completion / attention / error state
-- current project folder name
-- generic message
+- current project folder name, if enabled
+- generic notification text
 - API error type when available
 
-It does **not** send:
+**Never sent by AgentChime**
 
 - your prompt
 - source code
 - secrets
 - Claude's response
 
-A random ntfy topic is convenient, but it is not equivalent to authenticated access control. Use authenticated/self-hosted ntfy or disable mobile for sensitive environments.
+A random ntfy topic is convenient but is not the same as authenticated access control. For sensitive environments, use authenticated/self-hosted ntfy or disable mobile notifications.
 
-See [docs/PRIVACY.md](docs/PRIVACY.md).
+Read the full [privacy notes](docs/PRIVACY.md).
 
-## Installed files
-
-```text
-~/.agentchime/
-├── config.json
-├── notify.ps1
-├── agentchime.log       # created only if an alert fails
-└── backups/
-    └── settings-*.json
-```
-
-Claude Code is modified only by AgentChime handler entries in:
-
-```text
-~/.claude/settings.json
-```
+---
 
 ## Commands
 
@@ -228,13 +213,70 @@ Claude Code is modified only by AgentChime handler entries in:
 .\agentchime.ps1 test error
 ```
 
+### Local / reviewed installation
+
+If you prefer to inspect the code before running it:
+
+```powershell
+git clone https://github.com/devBismark/agentchime.git
+cd agentchime
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+With mobile:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -EnableMobile
+```
+
+With mobile in Brazilian Portuguese:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -EnableMobile -Locale pt-BR
+```
+
+### Keep an existing ntfy topic
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -EnableMobile -NtfyTopic "your-existing-topic"
+```
+
+### Disable mobile
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -DisableMobile
+```
+
+Reinstalling without mobile or locale flags preserves the current AgentChime configuration.
+
+---
+
+## Installed files
+
+```text
+~/.agentchime/
+├── config.json
+├── notify.ps1
+├── agentchime.log       # created only if an alert fails
+└── backups/
+    └── settings-*.json
+```
+
+AgentChime only modifies its own handler entries inside:
+
+```text
+~/.claude/settings.json
+```
+
+---
+
 ## Uninstall
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-Keep configuration and backups:
+Keep your configuration and backups:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1 -KeepConfig
@@ -242,43 +284,47 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1 -KeepCon
 
 The uninstaller backs up Claude settings first and removes only handlers pointing to AgentChime.
 
-## Troubleshooting
-
-If desktop works but your phone does not, compare the ntfy topic shown by:
-
-```powershell
-.\agentchime.ps1 mobile
-```
-
-with the subscription on your phone **character by character**. One wrong character means a different ntfy topic.
-
-More: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+---
 
 ## Roadmap
 
-- [x] Windows desktop alerts
+- [x] Windows desktop notifications
 - [x] Claude Code completion alerts
 - [x] attention alerts
-- [x] API failure alerts
-- [x] ntfy mobile alerts
-- [x] migration + idempotent installer
+- [x] API / model failure alerts
+- [x] ntfy mobile notifications
+- [x] safe migration + idempotent installer
 - [x] diagnostics + safe uninstall
-- [x] remote bootstrap installer
-- [ ] elapsed task/turn duration
+- [x] one-command remote bootstrap
+- [ ] elapsed task / turn duration
 - [ ] richer project context
 - [ ] first-class `agentchime` command on PATH
 - [ ] Codex adapter
-- [ ] additional coding agents
+- [ ] additional AI coding agents
 - [ ] more mobile providers
-- [ ] signed/reproducible release artifacts
+- [ ] signed / reproducible release artifacts
 
-See [docs/ROADMAP.md](docs/ROADMAP.md).
+See the full [roadmap](docs/ROADMAP.md).
 
-## IDISTØPIC LABS
+---
 
-AgentChime is project **001** in IDISTØPIC LABS: a public lab for small, practical tools born from real AI, automation, and development friction.
+## IDISTØPIC LABS · #001
 
-**Small tools. Real problems. Open source.**
+AgentChime is the first public microtool from **IDISTØPIC LABS** — a space for small, practical open-source tools born from real friction in AI, automation, and software development.
+
+> **Small tools. Real problems. Open source.**
+
+If AgentChime saves you a few terminal checks, consider giving the repository a ⭐. It helps other developers find it.
+
+---
+
+## Contributing
+
+Issues, ideas, bug reports, and pull requests are welcome.
+
+- [Contribution guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
 
 ## Disclaimer
 
