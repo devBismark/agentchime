@@ -23,40 +23,67 @@ function Read-Config {
     try { return (Get-Content $ConfigPath -Raw | ConvertFrom-Json) } catch { return $null }
 }
 
-function Test-HandlerTargetsPath([object]$Handler, [string]$Path) {
-    if ($null -eq $Handler) { return $false }
+# Hook handlers can spell the same file with either Windows separator, wrapped
+# in quotes, or with a trailing separator. Compare on a normalized key so one
+# file is recognised in every spelling.
+function Get-NormalizedPathKey([string]$Path) {
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+    $value = $Path.Trim().Trim('"').Trim("'").Replace('/', '\')
+    if ($value.Length -gt 3) { $value = $value.TrimEnd('\') }
+    return $value.ToLowerInvariant()
+}
+
+# Every .ps1 file a handler points at, taken from its command line and from its
+# args separately. The lookahead stops "notify.ps1" from matching inside a
+# longer name such as "notify.ps1.bak", which belongs to somebody else.
+function Get-HandlerScriptPaths([object]$Handler) {
+    $paths = @()
+    if ($null -eq $Handler) { return $paths }
     try {
-        if ($Handler.PSObject.Properties['args']) {
-            foreach ($arg in @($Handler.args)) {
-                if ([string]::Equals([string]$arg, $Path, [System.StringComparison]::OrdinalIgnoreCase)) {
-                    return $true
-                }
+        if ($Handler.PSObject.Properties['command']) {
+            $text = ([string]$Handler.command).Replace('/', '\').ToLowerInvariant()
+            foreach ($match in [regex]::Matches($text, '(?:[a-z]:\\|\\\\)[^"'',;]*?\.ps1(?![a-z0-9._-])')) {
+                $paths += (Get-NormalizedPathKey $match.Value)
             }
         }
-        if ($Handler.PSObject.Properties['command']) {
-            if (([string]$Handler.command).IndexOf($Path, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
-                return $true
+        if ($Handler.PSObject.Properties['args']) {
+            foreach ($arg in @($Handler.args)) {
+                $key = Get-NormalizedPathKey ([string]$arg)
+                if ($key.EndsWith('.ps1')) { $paths += $key }
             }
         }
     }
     catch {}
-    return $false
+    return $paths
 }
 
-function Count-AgentChimeHandlers([object]$Settings, [string]$EventName) {
-    $count = 0
-    if (-not $Settings.PSObject.Properties['hooks']) { return 0 }
-    if (-not $Settings.hooks.PSObject.Properties[$EventName]) { return 0 }
+# 'healthy' only when every script the handler names is our notifier. A handler
+# that also names another script is reported rather than counted: one of its
+# fields is a leftover, and a leftover can still be what actually runs.
+function Get-AgentChimeHandlerState([object]$Handler, [string]$Path) {
+    $key = Get-NormalizedPathKey $Path
+    $paths = @(Get-HandlerScriptPaths -Handler $Handler)
+    if ($paths.Count -eq 0) { return 'none' }
+    if ($paths -notcontains $key) { return 'none' }
+    if (@($paths | Where-Object { $_ -ne $key }).Count -gt 0) { return 'ambiguous' }
+    return 'healthy'
+}
 
-    foreach ($group in @($Settings.hooks.$EventName)) {
-        if ($null -eq $group -or -not $group.PSObject.Properties['hooks']) { continue }
-        foreach ($handler in @($group.hooks)) {
-            if (Test-HandlerTargetsPath -Handler $handler -Path $NotifyPath) {
-                $count++
+function Measure-AgentChimeHandlers([object]$Settings, [string]$EventName) {
+    $healthy = 0
+    $ambiguous = 0
+    if ($Settings.PSObject.Properties['hooks'] -and $Settings.hooks.PSObject.Properties[$EventName]) {
+        foreach ($group in @($Settings.hooks.$EventName)) {
+            if ($null -eq $group -or -not $group.PSObject.Properties['hooks']) { continue }
+            foreach ($handler in @($group.hooks)) {
+                switch (Get-AgentChimeHandlerState -Handler $handler -Path $NotifyPath) {
+                    'healthy' { $healthy++ }
+                    'ambiguous' { $ambiguous++ }
+                }
             }
         }
     }
-    return $count
+    return [pscustomobject]@{ Healthy = $healthy; Ambiguous = $ambiguous }
 }
 
 switch ($Command) {
@@ -117,14 +144,16 @@ switch ($Command) {
                 $expectedEvents = @('Stop', 'StopFailure', 'Notification')
                 $missingEvents = @()
                 $duplicateEvents = @()
+                $ambiguousEvents = @()
 
                 foreach ($eventName in $expectedEvents) {
-                    $count = Count-AgentChimeHandlers -Settings $settings -EventName $eventName
-                    if ($count -eq 0) { $missingEvents += $eventName }
-                    elseif ($count -gt 1) { $duplicateEvents += "$eventName ($count)" }
+                    $counts = Measure-AgentChimeHandlers -Settings $settings -EventName $eventName
+                    if ($counts.Ambiguous -gt 0) { $ambiguousEvents += "$eventName ($($counts.Ambiguous))" }
+                    if ($counts.Healthy -eq 0 -and $counts.Ambiguous -eq 0) { $missingEvents += $eventName }
+                    elseif ($counts.Healthy -gt 1) { $duplicateEvents += "$eventName ($($counts.Healthy))" }
                 }
 
-                if ($missingEvents.Count -eq 0 -and $duplicateEvents.Count -eq 0) {
+                if ($missingEvents.Count -eq 0 -and $duplicateEvents.Count -eq 0 -and $ambiguousEvents.Count -eq 0) {
                     Write-Host '[OK] Claude hooks reference AgentChime exactly once (Stop, StopFailure, Notification)' -ForegroundColor Green
                 }
                 else {
@@ -134,6 +163,13 @@ switch ($Command) {
                     }
                     if ($duplicateEvents.Count -gt 0) {
                         Write-Host ('[FAIL] Duplicate AgentChime hooks: ' + ($duplicateEvents -join ', ')) -ForegroundColor Red
+                        Write-Host '       Re-run install.ps1 to repair idempotently.' -ForegroundColor Yellow
+                        $ok = $false
+                    }
+                    if ($ambiguousEvents.Count -gt 0) {
+                        Write-Host ('[FAIL] Ambiguous AgentChime hooks: ' + ($ambiguousEvents -join ', ')) -ForegroundColor Red
+                        Write-Host '       These handlers name more than one notifier script, so the' -ForegroundColor Yellow
+                        Write-Host '       leftover one may be what actually runs.' -ForegroundColor Yellow
                         Write-Host '       Re-run install.ps1 to repair idempotently.' -ForegroundColor Yellow
                         $ok = $false
                     }

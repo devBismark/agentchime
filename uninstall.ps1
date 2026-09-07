@@ -11,24 +11,44 @@ $BackupDir = Join-Path $InstallDir 'backups'
 $NotifyPath = Join-Path $InstallDir 'notify.ps1'
 $SettingsPath = Join-Path (Join-Path $HOME '.claude') 'settings.json'
 
-function Test-HandlerTargetsPath([object]$Handler, [string]$Path) {
-    if ($null -eq $Handler) { return $false }
+# Hook handlers can spell the same file with either Windows separator, wrapped
+# in quotes, or with a trailing separator. Compare on a normalized key so one
+# file is recognised in every spelling.
+function Get-NormalizedPathKey([string]$Path) {
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+    $value = $Path.Trim().Trim('"').Trim("'").Replace('/', '\')
+    if ($value.Length -gt 3) { $value = $value.TrimEnd('\') }
+    return $value.ToLowerInvariant()
+}
+
+# Every .ps1 file a handler points at, taken from its command line and from its
+# args separately. The lookahead stops "notify.ps1" from matching inside a
+# longer name such as "notify.ps1.bak", which belongs to somebody else.
+function Get-HandlerScriptPaths([object]$Handler) {
+    $paths = @()
+    if ($null -eq $Handler) { return $paths }
     try {
-        if ($Handler.PSObject.Properties['args']) {
-            foreach ($arg in @($Handler.args)) {
-                if ([string]::Equals([string]$arg, $Path, [System.StringComparison]::OrdinalIgnoreCase)) {
-                    return $true
-                }
+        if ($Handler.PSObject.Properties['command']) {
+            $text = ([string]$Handler.command).Replace('/', '\').ToLowerInvariant()
+            foreach ($match in [regex]::Matches($text, '(?:[a-z]:\\|\\\\)[^"'',;]*?\.ps1(?![a-z0-9._-])')) {
+                $paths += (Get-NormalizedPathKey $match.Value)
             }
         }
-        if ($Handler.PSObject.Properties['command']) {
-            if (([string]$Handler.command).IndexOf($Path, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
-                return $true
+        if ($Handler.PSObject.Properties['args']) {
+            foreach ($arg in @($Handler.args)) {
+                $key = Get-NormalizedPathKey ([string]$arg)
+                if ($key.EndsWith('.ps1')) { $paths += $key }
             }
         }
     }
     catch {}
-    return $false
+    return $paths
+}
+
+function Test-HandlerTargetsPath([object]$Handler, [string]$Path) {
+    $key = Get-NormalizedPathKey $Path
+    if ([string]::IsNullOrWhiteSpace($key)) { return $false }
+    return (@(Get-HandlerScriptPaths -Handler $Handler) -contains $key)
 }
 
 if (Test-Path $SettingsPath) {
