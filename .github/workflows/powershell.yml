@@ -18,6 +18,9 @@ jobs:
       - name: Turn duration contract tests
         shell: powershell
         run: .\tests\duration-contract.ps1 -Suite contract
+      - name: Project label contract tests
+        shell: powershell
+        run: .\tests\project-label-contract.ps1 -Suite contract
       - name: Install lifecycle tests
         shell: powershell
         run: .\tests\lifecycle-contract.ps1 -Suite lifecycle

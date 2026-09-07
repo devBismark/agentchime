@@ -15,7 +15,26 @@ powershell.exe -File ~/.agentchime/notify.ps1 <state>
         +----> Windows NotifyIcon + system sound
 ```
 
-Claude Code passes hook context as JSON on stdin. AgentChime reads only the minimum useful fields, currently `cwd` for the project folder name and `error` for the `StopFailure` error type.
+Claude Code passes hook context as JSON on stdin. AgentChime reads only the minimum useful fields, currently `cwd` for the project name and `error` for the `StopFailure` error type.
+
+## How the project name is chosen
+
+The adapter hands the working directory to a provider-neutral resolver, which returns one short name and never a path. The resolver walks upwards from the working directory looking for the first `.git` marker, and reports the name of the directory that carries it. Failing that, it reports the name of the working directory itself, and failing that, nothing, in which case the notification says `Claude Code`.
+
+That single rule covers the cases that matter:
+
+| Working directory | Reported |
+| --- | --- |
+| the root of a checkout | the checkout's name, exactly as before |
+| `apps/web` inside a monorepo | the repository, not `web` |
+| a repository checked out inside another one | the nearer of the two |
+| a linked worktree | the worktree's own name |
+| a folder outside any repository | the folder's name, exactly as before |
+| a folder under a repository rooted at your account directory | the folder's name, never the account |
+
+The walk stops at your account directory. A repository rooted there spans everything you own rather than one project, and the folder carrying it is usually named after your account, so it is never claimed as a project name.
+
+The walk is a bounded sequence of existence checks. It starts no process, so git does not have to be installed; it opens no file, so the marker a worktree uses to point at its main checkout is never read; and it touches no network. Nothing else is consulted: not a remote, not an owner, not a package manifest, and not the contents of the checkout. Resolution is best effort, and a failure costs the name and nothing else.
 
 ## Hook mapping
 

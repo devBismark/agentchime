@@ -51,16 +51,15 @@ function Get-ClaudePayloadValue([object]$Payload, [string]$Name) {
     return ''
 }
 
-# The working directory is the only field a project label is taken from, and
-# only its leaf is kept, so no absolute path can leave the adapter.
+# The working directory is the only field a project label is taken from. The
+# adapter's whole job is to hand that one string to the neutral resolver below
+# and to supply the wording used when no name could be taken safely.
 function Get-ClaudeProjectLabel([object]$Payload) {
     try {
         $cwd = Get-ClaudePayloadValue -Payload $Payload -Name 'cwd'
-        if (-not [string]::IsNullOrWhiteSpace($cwd)) {
-            $leaf = Split-Path -Path $cwd -Leaf
-            if (-not [string]::IsNullOrWhiteSpace($leaf)) {
-                return $leaf
-            }
+        $label = Resolve-ProjectLabel -WorkingDirectory $cwd
+        if (-not [string]::IsNullOrWhiteSpace($label)) {
+            return $label
         }
     }
     catch {}
@@ -117,6 +116,137 @@ function ConvertTo-AgentEvent {
         errorType    = $errorType
         locale       = $Locale
         durationMs   = $duration
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Project label resolution
+#
+# Provider-neutral. This region is handed a working directory and returns one
+# short name. It knows nothing about which agent asked, and a future adapter
+# reuses it by passing its own directory string, so no agent vocabulary may
+# appear below.
+# ---------------------------------------------------------------------------
+
+# How far the search below will climb. A working directory nested more deeply
+# than this is not worth an unbounded walk, and the bound is what keeps the
+# cost of a notification independent of where it was fired from.
+$script:ProjectRootMaxDepth = 64
+
+# The last segment of a directory path and nothing else. A bare drive or share
+# root has no segment worth reporting, so it yields nothing rather than
+# something that would read back as a path.
+#
+# The split is done by hand rather than through the path helpers because those
+# reject characters that a hostile or corrupted directory string may contain,
+# and a label is never worth raising an error over.
+function Get-DirectoryLeafName([string]$Directory) {
+    if ([string]::IsNullOrWhiteSpace($Directory)) { return '' }
+
+    $trimmed = $Directory.Trim().TrimEnd([char]'\', [char]'/')
+    if ([string]::IsNullOrWhiteSpace($trimmed)) { return '' }
+
+    $cut = [math]::Max($trimmed.LastIndexOf([char]'\'), $trimmed.LastIndexOf([char]'/'))
+    $leaf = if ($cut -ge 0) { $trimmed.Substring($cut + 1) } else { $trimmed }
+    $leaf = $leaf.Trim()
+
+    # 'C:' is a drive specifier, not a folder anybody named.
+    if ($leaf -match '^[A-Za-z]:$') { return '' }
+
+    return $leaf
+}
+
+# The account directory, trimmed so it can be compared segment for segment, or
+# an empty string when it cannot be determined, which no real directory equals.
+# This is a fact about the machine rather than about any agent, so reading it
+# here keeps this region neutral.
+function Get-AccountRootDirectory {
+    try {
+        foreach ($candidate in @($env:USERPROFILE, $HOME)) {
+            if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+                return ([string]$candidate).Trim().TrimEnd([char]'\', [char]'/')
+            }
+        }
+    }
+    catch {}
+    return ''
+}
+
+# Climbs from a working directory towards the filesystem root and returns the
+# first directory carrying a repository marker, or nothing when there is none.
+#
+# The nearest marker wins, which is what makes a repository checked out inside
+# another one report itself rather than its host. An ordinary checkout marks
+# its root with a directory and a linked worktree marks its own root with a
+# file, so both are accepted and the worktree names itself. The marker file is
+# never opened: it records where the main checkout lives, and that is precisely
+# the kind of path this notifier must not learn.
+#
+# The climb stops at the account directory. A repository rooted there spans
+# everything the user owns rather than one project, and the folder carrying it
+# is usually named after the account, so claiming it would put a person's name
+# in a notification. Stopping there also keeps the search from ever reaching
+# the directories above it.
+#
+# The whole search is a bounded sequence of existence probes. It starts no
+# process, so it does not depend on any tool being installed, reads no file and
+# touches no network.
+function Get-EnclosingRepositoryRoot([string]$Directory) {
+    if ([string]::IsNullOrWhiteSpace($Directory)) { return '' }
+
+    $accountRoot = Get-AccountRootDirectory
+    $current = $Directory.Trim()
+
+    for ($depth = 0; $depth -lt $script:ProjectRootMaxDepth; $depth++) {
+        $parent = ''
+        try {
+            if ($current.TrimEnd([char]'\', [char]'/') -ieq $accountRoot) { return '' }
+
+            $marker = [System.IO.Path]::Combine($current, '.git')
+            if ([System.IO.Directory]::Exists($marker) -or [System.IO.File]::Exists($marker)) {
+                return $current
+            }
+            $parent = [string][System.IO.Path]::GetDirectoryName($current)
+        }
+        catch {
+            # A directory string the platform cannot even parse is not a
+            # repository. Report that rather than raising.
+            return ''
+        }
+
+        if ([string]::IsNullOrWhiteSpace($parent) -or $parent -ceq $current) { return '' }
+        $current = $parent
+    }
+
+    return ''
+}
+
+# The project label: one short name, never a path, a URL, an owner, a user or a
+# host. An empty result means no name could be taken safely, and the caller
+# decides what neutral wording to show instead.
+#
+# The repository root outranks the working directory because it names the thing
+# being worked on. Deep inside a monorepo, apps\web is where the agent happens
+# to stand while the repository is the project, and reporting 'web' loses the
+# only part a person would recognise. At the root of an ordinary checkout the
+# two agree, so those notifications keep the wording they already had.
+#
+# Nothing else is consulted. A remote, an owner, a package manifest and the
+# contents of the checkout would each add a way for something private to escape
+# in exchange for context this rule already supplies.
+function Resolve-ProjectLabel([string]$WorkingDirectory) {
+    try {
+        if ([string]::IsNullOrWhiteSpace($WorkingDirectory)) { return '' }
+
+        $label = Get-DirectoryLeafName (Get-EnclosingRepositoryRoot $WorkingDirectory)
+        if (-not [string]::IsNullOrWhiteSpace($label)) { return $label }
+
+        return (Get-DirectoryLeafName $WorkingDirectory)
+    }
+    catch {
+        # Project context is best effort. A label that cannot be resolved must
+        # never be the reason a notification does not arrive.
+        return ''
     }
 }
 

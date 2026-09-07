@@ -18,9 +18,27 @@
   exactly the message it rendered before the key existed; `minimal` drops the
   project label, the API error type and the elapsed time, and keeps the title,
   priority and tags so the state is still legible
+- project names resolved from the nearest enclosing repository root rather than
+  from the working directory alone, so `apps/web` inside a monorepo now reports
+  the repository. A working directory that is already a repository root, or that
+  is outside any repository, reports exactly what it reported before
 
 ### Notes
 
+- project name resolution is provider neutral: it is handed a working directory
+  and returns one short name, so a future adapter reuses it unchanged
+- resolution walks for a `.git` marker and reads nothing else. No remote, owner,
+  account, path, package manifest or checkout content is consulted, the marker
+  file a worktree uses to name its main checkout is never opened, and no process
+  or network request is involved, so git need not be installed
+- a repository checked out inside another one reports the nearer of the two, and
+  a linked worktree reports its own name
+- the search stops at the account directory, so a repository rooted there never
+  puts an account name in a notification
+- `privacy.sendProjectName` set to `false` short-circuits resolution entirely:
+  nothing is walked, derived or read
+- project context is best effort, so a resolution failure costs the label and
+  never the notification
 - timings come from the performance counter, so moving the system clock cannot
   change a reported figure
 - turn state lives in `~/.agentchime/turns/`, holds no prompt, output,

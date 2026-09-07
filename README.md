@@ -135,7 +135,7 @@ that spells it wrongly, renders standard notifications.
 
 The level chooses only among context your privacy preferences already allow. It
 can leave something out, never put something back: with `sendProjectName` off,
-no level shows the folder name, and with `sendDuration` off, no level shows the
+no level shows the project name, and with `sendDuration` off, no level shows the
 elapsed time.
 
 AgentChime intentionally does **not** map `idle_prompt` to the attention state. `Stop` already sends the completion alert, and mapping both can create a delayed duplicate notification.
@@ -214,13 +214,17 @@ When using public `ntfy.sh`, AgentChime sends only minimal status context:
 **May be sent**
 
 - completion / attention / error state
-- current project folder name, if enabled
+- current project name, if enabled
 - generic notification text
 - API error type when available
 - elapsed turn time, if enabled
 
-At the `minimal` detail level, none of the folder name, the error type or the
+At the `minimal` detail level, none of the project name, the error type or the
 elapsed time is sent at all.
+
+The project name is the name of the repository the agent is working in, or the
+name of the working folder when there is no repository. It is one short name.
+No path, remote address, organisation or account name is ever read or sent.
 
 **Never sent by AgentChime**
 

@@ -24,7 +24,7 @@ $FixturePath = Join-Path $PSScriptRoot 'fixtures\baseline-messages.json'
 $FixtureCommit = '1d63f8fba1ddfab204d8d19436b8c872b0b0d812'
 
 # The commit this step started from. Scope is measured against it.
-$StepBaselineCommit = '2f5c15adf8aa97b87939baa21797a947fbd8ec98'
+$StepBaselineCommit = 'd8eb558ffcdd30af41f60b60bdcc926fa2c5d899'
 
 # The probe used by the detail suite's mutation controls.
 $ProbePath = Join-Path $PSScriptRoot 'mutation-probe.ps1'
@@ -140,9 +140,14 @@ $script:ClaudeVocabulary = @(
     'ClaudeTurnIdentity'
 )
 
-# Every function that must stay provider-neutral: rendering, delivery, and the
-# whole turn-duration store, which is handed opaque keys rather than ids.
+# Every function that must stay provider-neutral: project label resolution,
+# rendering, delivery, and the whole turn-duration store, which is handed
+# opaque keys rather than ids.
 $script:DownstreamFunctions = @(
+    'Resolve-ProjectLabel',
+    'Get-EnclosingRepositoryRoot',
+    'Get-DirectoryLeafName',
+    'Get-AccountRootDirectory',
     'Get-AgentMessage',
     'Resolve-DetailLevel',
     'Get-DesktopStyle',
@@ -854,10 +859,11 @@ function Invoke-ScopeSuite {
         $touched = @($changed + $untracked | Sort-Object -Unique)
 
         # Non-vacuous: this step must actually have changed the notifier and
-        # registered the start marker.
+        # brought its own contract with it.
         Assert-That ($touched -contains 'src/notify.ps1') 'this step touched src/notify.ps1'
-        Assert-That ($touched -contains 'install.ps1') 'this step touched install.ps1'
-        Assert-That ($touched.Count -ge 4) 'this step touched the notifier, the installer and their tests'
+        Assert-That ($touched -contains 'tests/project-label-contract.ps1') 'this step brought a project label contract'
+        Assert-That ($touched -contains 'tests/label-probe.ps1') 'this step brought the probe its mutation controls run'
+        Assert-That ($touched.Count -ge 4) 'this step touched the notifier, its contract and its documentation'
 
         $allowed = '^(src/notify\.ps1|install\.ps1|bootstrap\.ps1|agentchime\.ps1|config\.example\.json|CHANGELOG\.md|README\.md|tests/.*|docs/.*|\.github/workflows/powershell\.yml)$'
         foreach ($path in $touched) {
@@ -881,11 +887,14 @@ function Invoke-ScopeSuite {
         # The features this step is explicitly not allowed to start. Each is
         # searched for as a working-tree identifier, not as prose.
         $excluded = [ordered]@{
-            'notification history' = 'notificationHistory|notification-history|Add-NotificationHistory'
-            'mobile auth'          = 'Authorization\s*=|ntfyToken|accessToken'
-            'a command line tool'  = 'function\s+Invoke-AgentChimeCli|agentchime-cli'
-            'codex support'        = 'ConvertTo-CodexEvent|Get-CodexPayloadValue|provider\s*=\s*.codex'
-            'smarter project labels' = 'Get-SmartProjectLabel|Get-GitProjectLabel|projectLabelStrategy'
+            'notification history'      = 'notificationHistory|notification-history|Add-NotificationHistory'
+            'mobile auth'               = 'Authorization\s*=|ntfyToken|accessToken'
+            'a command line tool'       = 'function\s+Invoke-AgentChimeCli|agentchime-cli'
+            'codex support'             = 'ConvertTo-CodexEvent|Get-CodexPayloadValue|provider\s*=\s*.codex'
+            'a project label override'  = 'projectLabelStrategy|projectLabelOverride|projectName\s*='
+            'project manifest reading'  = 'package\.json|pyproject|Cargo\.toml|composer\.json|\.csproj'
+            'remote repository lookup'  = 'remote\s+get-url|git\s+remote|--show-toplevel|rev-parse'
+            'shelling out for a label'  = 'Start-Process|(?<![.\w-])git(\.exe)?\b'
         }
         $sources = @('src/notify.ps1', 'install.ps1', 'agentchime.ps1', 'uninstall.ps1', 'bootstrap.ps1')
         $sourceText = (@($sources | ForEach-Object { Get-Content (Join-Path $RepoRoot $_) -Raw }) -join "`n")
