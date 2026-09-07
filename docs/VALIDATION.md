@@ -46,10 +46,11 @@ A later audit re-ran the shipped scripts on Windows PowerShell 5.1 against throw
 
 Before v0.2.0 was tagged, every suite in `tests/` was re-run from the final code
 on Windows PowerShell 5.1, rather than relying on the result recorded when each
-change was made. Thirty-one suites passed, together asserting 1,343 behaviours.
-Each suite prints a success-only token and refuses to report a pass if it ran
-fewer assertions than it declares, so a suite that silently stopped exercising
-its subject fails instead of looking green.
+change was made. Thirty-two suites passed, together asserting 1,347 behaviours,
+alongside the repository validation script. Each suite prints a success-only
+token and refuses to report a pass if it ran fewer assertions than it declares,
+so a suite that silently stopped exercising its subject fails instead of looking
+green.
 
 Re-exercised from the final code:
 
