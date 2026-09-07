@@ -94,6 +94,17 @@ switch ($Command) {
         Write-Host ('Claude settings found : ' + (Test-Path $SettingsPath))
         if ($null -ne $config) {
             if ($config.PSObject.Properties['version']) { Write-Host ('Config version : ' + $config.version) }
+
+            # The effective level, not the stored spelling. A config with no
+            # detailLevel key, or one that spells it wrongly, renders standard
+            # notifications, so that is what status has to report.
+            $detail = 'standard'
+            if ($config.PSObject.Properties['detailLevel'] -and
+                ([string]$config.detailLevel).Trim().ToLowerInvariant() -eq 'minimal') {
+                $detail = 'minimal'
+            }
+            Write-Host ('Detail  : ' + $detail)
+
             Write-Host ('Desktop : ' + $(if ($config.desktop.enabled) { 'ON' } else { 'OFF' }))
             Write-Host ('Mobile  : ' + $(if ($config.mobile.enabled) { 'ON' } else { 'OFF' }))
             if ($config.mobile.enabled) {

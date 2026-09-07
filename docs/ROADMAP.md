@@ -18,7 +18,7 @@ Shipped as [v0.1.0](https://github.com/devBismark/agentchime/releases/tag/v0.1.0
 
 - elapsed task/turn time
 - smarter project labels
-- configurable notification detail
+- configurable notification detail (shipped: `detailLevel`, `standard` and `minimal`)
 - notification history
 - stronger mobile authentication options
 

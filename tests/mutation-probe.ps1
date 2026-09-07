@@ -10,7 +10,7 @@ param(
     [string]$Notifier,
 
     [Parameter(Mandatory = $true)]
-    [ValidateSet('elapsed', 'backwards', 'correlation')]
+    [ValidateSet('elapsed', 'backwards', 'correlation', 'detail', 'detail-privacy')]
     [string]$Probe
 )
 
@@ -69,6 +69,52 @@ switch ($Probe) {
         finally {
             if (Test-Path $directory) { Remove-Item $directory -Recurse -Force -ErrorAction SilentlyContinue }
         }
+    }
+
+    'detail' {
+        # The minimal level must actually drop all three pieces of context
+        # while the standard level keeps them. A notifier that ignores the
+        # level renders the same body twice and is killed here.
+        $agentEvent = [pscustomobject]@{
+            provider     = 'claude-code'
+            state        = 'error'
+            projectLabel = 'my-project'
+            errorType    = 'ToolExecutionFailure'
+            locale       = 'en'
+            durationMs   = 1122000
+        }
+        $standard = Get-AgentMessage -AgentEvent $agentEvent -Detail 'standard'
+        $minimal = Get-AgentMessage -AgentEvent $agentEvent -Detail 'minimal'
+
+        $standardOk = ([string]$standard.Body) -ceq 'my-project - Claude stopped because of an error (ToolExecutionFailure). (18m 42s)'
+        $minimalOk = ([string]$minimal.Body) -ceq 'Claude stopped because of an error.'
+        $titlesOk = ([string]$standard.Title) -ceq ([string]$minimal.Title)
+
+        if ($standardOk -and $minimalOk -and $titlesOk) { $verdict = 'SURVIVED' }
+    }
+
+    'detail-privacy' {
+        # Privacy outranks detail. An event whose label and measurement were
+        # already suppressed must render the same body at the most detailed
+        # level as it does at the least detailed one. A notifier that lets a
+        # level reach back for suppressed context is killed here.
+        $suppressed = [pscustomobject]@{
+            provider     = 'claude-code'
+            state        = 'finished'
+            projectLabel = 'Claude Code'
+            errorType    = ''
+            locale       = 'en'
+            durationMs   = $null
+        }
+        $standard = Get-AgentMessage -AgentEvent $suppressed -Detail 'standard'
+
+        $leaked = @('my-project', '18m 42s', 'ToolExecutionFailure')
+        $clean = $true
+        foreach ($fragment in $leaked) {
+            if (([string]$standard.Body) -like ('*' + $fragment + '*')) { $clean = $false }
+        }
+
+        if ($clean -and (([string]$standard.Body) -ceq 'Claude Code - Claude finished the task.')) { $verdict = 'SURVIVED' }
     }
 }
 

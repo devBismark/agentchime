@@ -13,6 +13,11 @@
   to v0.1
 - `durationMs` on the normalized AgentEvent: optional, vendor neutral, and
   absent whenever no trustworthy measurement exists
+- `detailLevel` configuration key with two levels, `standard` and `minimal`,
+  plus a `-DetailLevel` install switch. `standard` is the default and renders
+  exactly the message it rendered before the key existed; `minimal` drops the
+  project label, the API error type and the elapsed time, and keeps the title,
+  priority and tags so the state is still legible
 
 ### Notes
 
@@ -23,6 +28,12 @@
   including with `-KeepConfig`
 - `doctor` now also expects the `UserPromptSubmit` hook; rerun `install.ps1`
   after upgrading
+- privacy overrides detail: a detail level chooses only among context the
+  privacy preferences already allow, so `sendProjectName` and `sendDuration`
+  still suppress their fields at every level
+- a config with no `detailLevel` key, or an unrecognised one, renders standard
+  notifications; a reinstall preserves a recognised level and repairs an
+  unrecognised one
 
 ## 0.1.0 - 2026-08-29
 

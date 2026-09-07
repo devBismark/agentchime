@@ -377,39 +377,77 @@ function Format-TurnDuration([object]$DurationMs, [string]$Locale) {
     return ('{0}s' -f $rest)
 }
 
-function Get-AgentMessage([object]$AgentEvent) {
+# The notifier renders exactly three pieces of variable context: the project
+# label, the API error type and the elapsed time. That is what bounds the
+# detail model to two levels. 'standard' shows all three, each still subject to
+# the privacy preference that already governs it, and is the v0.1 message.
+# 'minimal' shows none of them and leaves the state alone, which is the only
+# other combination that is useful without collecting anything new. A third
+# level would have nothing left to add, so there is not one.
+#
+# Anything unrecognised degrades to 'standard'. A missing value, a typo, a
+# number and a boolean are all the same thing here: no instruction, so keep the
+# behaviour the install already had.
+function Resolve-DetailLevel([object]$Value) {
+    if ($Value -isnot [string]) { return 'standard' }
+    if ($Value.Trim().ToLowerInvariant() -eq 'minimal') { return 'minimal' }
+    return 'standard'
+}
+
+function Get-AgentMessage {
+    param(
+        [object]$AgentEvent,
+        [object]$Detail = 'standard'
+    )
+
+    $level = Resolve-DetailLevel $Detail
+
+    # Detail level only ever chooses among context the privacy preferences have
+    # already authorized, so it can subtract and never add. A label or a
+    # measurement suppressed upstream is already absent from the event, and no
+    # level can reach back for it: privacy overrides detail, never the reverse.
     $project = [string]$AgentEvent.projectLabel
     $errorType = [string]$AgentEvent.errorType
+    $durationMs = $AgentEvent.durationMs
+
+    if ($level -eq 'minimal') {
+        $project = ''
+        $errorType = ''
+        $durationMs = $null
+    }
+
+    $prefix = if ([string]::IsNullOrWhiteSpace($project)) { '' } else { "$project - " }
     $suffix = if ([string]::IsNullOrWhiteSpace($errorType)) { '' } else { " ($errorType)" }
 
     # Elapsed time is appended to the body only. Titles, priority and tags are
-    # the v0.1 contract and stay exactly as they were.
-    $elapsed = Format-TurnDuration -DurationMs $AgentEvent.durationMs -Locale ([string]$AgentEvent.locale)
+    # the v0.1 contract and stay exactly as they were at every detail level, so
+    # a minimal notification still says which state it is reporting.
+    $elapsed = Format-TurnDuration -DurationMs $durationMs -Locale ([string]$AgentEvent.locale)
     $tail = if ([string]::IsNullOrWhiteSpace($elapsed)) { '' } else { " ($elapsed)" }
 
     if ([string]$AgentEvent.locale -eq 'pt-BR') {
         switch ([string]$AgentEvent.state) {
             'finished' {
-                return @{ Title = 'Claude Code - FINALIZADO'; Body = "$project - O Claude terminou o trabalho.$tail"; Priority = 'default'; Tags = 'white_check_mark,robot_face' }
+                return @{ Title = 'Claude Code - FINALIZADO'; Body = "${prefix}O Claude terminou o trabalho.$tail"; Priority = 'default'; Tags = 'white_check_mark,robot_face' }
             }
             'attention' {
-                return @{ Title = 'Claude Code - ATENCAO'; Body = "$project - O Claude esta esperando sua intervencao.$tail"; Priority = 'high'; Tags = 'warning,robot_face' }
+                return @{ Title = 'Claude Code - ATENCAO'; Body = "${prefix}O Claude esta esperando sua intervencao.$tail"; Priority = 'high'; Tags = 'warning,robot_face' }
             }
             'error' {
-                return @{ Title = 'Claude Code - ERRO'; Body = "$project - O Claude interrompeu o trabalho$suffix.$tail"; Priority = 'high'; Tags = 'x,robot_face' }
+                return @{ Title = 'Claude Code - ERRO'; Body = "${prefix}O Claude interrompeu o trabalho$suffix.$tail"; Priority = 'high'; Tags = 'x,robot_face' }
             }
         }
     }
 
     switch ([string]$AgentEvent.state) {
         'finished' {
-            return @{ Title = 'Claude Code - FINISHED'; Body = "$project - Claude finished the task.$tail"; Priority = 'default'; Tags = 'white_check_mark,robot_face' }
+            return @{ Title = 'Claude Code - FINISHED'; Body = "${prefix}Claude finished the task.$tail"; Priority = 'default'; Tags = 'white_check_mark,robot_face' }
         }
         'attention' {
-            return @{ Title = 'Claude Code - ATTENTION'; Body = "$project - Claude is waiting for your input.$tail"; Priority = 'high'; Tags = 'warning,robot_face' }
+            return @{ Title = 'Claude Code - ATTENTION'; Body = "${prefix}Claude is waiting for your input.$tail"; Priority = 'high'; Tags = 'warning,robot_face' }
         }
         'error' {
-            return @{ Title = 'Claude Code - ERROR'; Body = "$project - Claude stopped because of an error$suffix.$tail"; Priority = 'high'; Tags = 'x,robot_face' }
+            return @{ Title = 'Claude Code - ERROR'; Body = "${prefix}Claude stopped because of an error$suffix.$tail"; Priority = 'high'; Tags = 'x,robot_face' }
         }
     }
 }
@@ -506,6 +544,21 @@ function Get-DurationPreference([object]$Config) {
     return $true
 }
 
+# A config written before this feature existed has no detailLevel key, and an
+# unusable one is treated the same way: both fall back to 'standard', which is
+# the message the install was already sending. An upgrade and a typo are
+# therefore equally safe, and neither can silently make a notification say
+# more than it did before.
+function Get-DetailLevelPreference([object]$Config) {
+    try {
+        if ($Config.PSObject.Properties['detailLevel']) {
+            return (Resolve-DetailLevel $Config.detailLevel)
+        }
+    }
+    catch {}
+    return 'standard'
+}
+
 function Invoke-AgentChimeNotification {
     $payload = Read-ClaudeHookPayload
     $config = Get-AgentChimeConfig
@@ -521,6 +574,7 @@ function Invoke-AgentChimeNotification {
     catch {}
 
     $sendDuration = Get-DurationPreference -Config $config
+    $detailLevel = Get-DetailLevelPreference -Config $config
     $identity = Get-ClaudeTurnIdentity -Payload $payload
 
     # The start marker records local state and notifies nobody. It is also the
@@ -552,7 +606,7 @@ function Invoke-AgentChimeNotification {
     $payload = $null
     $identity = $null
 
-    $message = Get-AgentMessage -AgentEvent $agentEvent
+    $message = Get-AgentMessage -AgentEvent $agentEvent -Detail $detailLevel
 
     $errors = New-Object System.Collections.Generic.List[string]
 

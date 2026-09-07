@@ -6,6 +6,8 @@ param(
     [string]$NtfyServer = '',
     [ValidateSet('', 'en', 'pt-BR')]
     [string]$Locale = '',
+    [ValidateSet('', 'minimal', 'standard')]
+    [string]$DetailLevel = '',
     [switch]$EnableDuration,
     [switch]$DisableDuration,
     [switch]$MigratePrototype,
@@ -235,6 +237,25 @@ if ($null -ne $sourceConfig -and $sourceConfig.PSObject.Properties['privacy'] -a
     $sendProjectName = [bool]$sourceConfig.privacy.sendProjectName
 }
 
+# How much context a notification carries. 'standard' is the message v0.1 sent,
+# so a config written before this key existed keeps exactly the notifications it
+# already had. An explicit switch wins, otherwise an existing choice is
+# preserved, and an unreadable stored value falls back to the safe default
+# rather than to whatever it happened to spell.
+$effectiveDetailLevel = if (-not [string]::IsNullOrWhiteSpace($DetailLevel)) {
+    $DetailLevel
+}
+elseif ($null -ne $sourceConfig -and $sourceConfig.PSObject.Properties['detailLevel'] -and
+    (@('minimal', 'standard') -contains ([string]$sourceConfig.detailLevel).Trim().ToLowerInvariant())) {
+    # Stored canonically. The notifier reads a level case-insensitively, so a
+    # reinstall must preserve what a hand-edited 'MINIMAL' meant rather than
+    # treat it as unrecognised and quietly restore the default.
+    ([string]$sourceConfig.detailLevel).Trim().ToLowerInvariant()
+}
+else {
+    'standard'
+}
+
 # Elapsed turn time is on by default. An explicit switch wins, otherwise an
 # existing preference is preserved, so a reinstall never silently re-enables it.
 $sendDuration = if ($EnableDuration) {
@@ -311,6 +332,7 @@ $settings | ConvertTo-Json -Depth 100 | Set-Content -Path $SettingsPath -Encodin
 $config = [ordered]@{
     version = $AgentChimeVersion
     locale = $effectiveLocale
+    detailLevel = $effectiveDetailLevel
     desktop = [ordered]@{
         enabled = $true
     }
@@ -348,6 +370,12 @@ if ($sendDuration) {
 }
 else {
     Write-Host 'Elapsed turn time     : OFF' -ForegroundColor DarkGray
+}
+if ($effectiveDetailLevel -eq 'minimal') {
+    Write-Host 'Notification detail   : MINIMAL' -ForegroundColor DarkGray
+}
+else {
+    Write-Host 'Notification detail   : STANDARD' -ForegroundColor Green
 }
 if ($mobileEnabled) {
     Write-Host 'Mobile notifications  : ON (ntfy)' -ForegroundColor Green

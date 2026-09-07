@@ -61,6 +61,25 @@ notification is then exactly the v0.1 one.
 `Notification` arrives while the turn is still running, so an attention alert
 never reports or consumes a start.
 
+## Notification detail level
+
+The notifier renders exactly three pieces of variable context: the project
+label, the API error type and the elapsed time. That bound is what fixes the
+detail model at two levels rather than an arbitrary number. `standard` shows all
+three, each still subject to the privacy preference that governs it. `minimal`
+shows none of them. A third level would have nothing left to add without
+collecting something new, so there is not one.
+
+Detail level lives in the rendering layer alone. It reads the normalized
+AgentEvent and decides what to print; it never reaches the Claude Code adapter,
+the turn store, the hooks or either delivery provider, and it adds no field to
+the event. Turning it down therefore changes the message and nothing else.
+
+Privacy outranks it in both directions. A field a privacy preference suppressed
+is already absent from the event, so no level can reach back for it, and the
+minimal level suppresses all three whatever the preferences allow. Both rules
+subtract, so the notification carries the intersection of what the two allow.
+
 ## Why AgentChime lives in ~/.agentchime
 
 Claude Code is only one integration. Keeping the notifier/configuration outside `~/.claude` makes the core reusable for future Codex and other agent adapters.

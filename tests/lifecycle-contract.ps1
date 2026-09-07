@@ -151,6 +151,14 @@ function Get-PrivacyFlag([object]$Config, [string]$Name) {
     return ([string][bool]$Config.privacy.$Name)
 }
 
+# Reads a top-level configuration value, distinguishing an absent key from a
+# stored empty one.
+function Get-ConfigValue([object]$Config, [string]$Name) {
+    if ($null -eq $Config) { return 'missing' }
+    if (-not $Config.PSObject.Properties[$Name]) { return 'missing' }
+    return ([string]$Config.$Name)
+}
+
 function Set-SandboxConfigValue([scriptblock]$Mutate) {
     $config = Read-SandboxJson $script:SandboxConfig
     & $Mutate $config
@@ -182,6 +190,7 @@ function Invoke-LifecycleSuite {
     $config = Read-SandboxJson $script:SandboxConfig
     Assert-Equal 'True' (Get-PrivacyFlag $config 'sendDuration') 'B elapsed turn time is on by default'
     Assert-Equal 'True' (Get-PrivacyFlag $config 'sendProjectName') 'B the project-name preference is unchanged'
+    Assert-Equal 'standard' (Get-ConfigValue $config 'detailLevel') 'B the notification detail level defaults to standard'
 
     $settings = Read-SandboxJson $script:SandboxSettings
     $expectedStates = [ordered]@{
@@ -266,7 +275,74 @@ function Invoke-LifecycleSuite {
     $both = Invoke-InSandbox -Script $install -ScriptArguments @('-EnableDuration', '-DisableDuration')
     Assert-That ($both.ExitCode -ne 0) 'E contradicting switches are refused'
 
-    # F. four installs later there is still exactly one handler per event.
+    # L. the notification detail level. It is a rendering preference, so the
+    # installer only has to store it, preserve it, repair an unusable one and
+    # refuse a level nobody defined.
+    $config = Read-SandboxJson $script:SandboxConfig
+    Assert-Equal 'standard' (Get-ConfigValue $config 'detailLevel') 'L the stored level is still the default here'
+
+    Set-SandboxConfigValue { param($c) $c.detailLevel = 'minimal' }
+    $kept = Invoke-InSandbox -Script $install
+    Assert-Equal '0' ([string]$kept.ExitCode) "L a reinstall succeeds: $($kept.Output)"
+    $config = Read-SandboxJson $script:SandboxConfig
+    Assert-Equal 'minimal' (Get-ConfigValue $config 'detailLevel') 'L the detail level survives a reinstall'
+    Assert-Equal 'pt-BR' ([string]$config.locale) 'L the reinstall left the locale alone'
+    Assert-Equal 'preserved-topic-abc123' ([string]$config.mobile.topic) 'L the reinstall left the ntfy topic alone'
+
+    # The switch moves the level, and moves nothing else.
+    $standardRun = Invoke-InSandbox -Script $install -ScriptArguments @('-DetailLevel', 'standard')
+    Assert-Equal '0' ([string]$standardRun.ExitCode) "L -DetailLevel standard succeeds: $($standardRun.Output)"
+    $config = Read-SandboxJson $script:SandboxConfig
+    Assert-Equal 'standard' (Get-ConfigValue $config 'detailLevel') 'L -DetailLevel standard stores the standard level'
+    Assert-Equal 'False' (Get-PrivacyFlag $config 'sendDuration') 'L -DetailLevel standard leaves the privacy flags alone'
+
+    $minimalRun = Invoke-InSandbox -Script $install -ScriptArguments @('-DetailLevel', 'minimal')
+    Assert-Equal '0' ([string]$minimalRun.ExitCode) "L -DetailLevel minimal succeeds: $($minimalRun.Output)"
+    $config = Read-SandboxJson $script:SandboxConfig
+    Assert-Equal 'minimal' (Get-ConfigValue $config 'detailLevel') 'L -DetailLevel minimal stores the minimal level'
+    Assert-That ($minimalRun.Output -like '*MINIMAL*') 'L the installer reports the level it stored'
+
+    # A level nobody defined is refused at the switch rather than written.
+    $bogus = Invoke-InSandbox -Script $install -ScriptArguments @('-DetailLevel', 'detailed')
+    Assert-That ($bogus.ExitCode -ne 0) 'L an unrecognised level is refused'
+    Assert-Equal 'minimal' (Get-ConfigValue (Read-SandboxJson $script:SandboxConfig) 'detailLevel') 'L a refused install changed nothing'
+
+    # An upgrade from a configuration written before the key existed.
+    Set-SandboxConfigValue { param($c) $c.PSObject.Properties.Remove('detailLevel') }
+    Assert-Equal 'missing' (Get-ConfigValue (Read-SandboxJson $script:SandboxConfig) 'detailLevel') 'L the key really was removed'
+
+    $upgraded = Invoke-InSandbox -Script $install
+    Assert-Equal '0' ([string]$upgraded.ExitCode) "L an upgrade install succeeds: $($upgraded.Output)"
+    $config = Read-SandboxJson $script:SandboxConfig
+    Assert-Equal 'standard' (Get-ConfigValue $config 'detailLevel') 'L an upgrade adds the standard level'
+    Assert-Equal 'False' (Get-PrivacyFlag $config 'sendProjectName') 'L an upgrade preserved the project-name preference'
+    Assert-Equal 'pt-BR' ([string]$config.locale) 'L an upgrade preserved the locale'
+
+    # A stored value nobody recognises is repaired rather than carried forward.
+    Set-SandboxConfigValue { param($c) $c.detailLevel = 'verbose' }
+    $repaired = Invoke-InSandbox -Script $install
+    Assert-Equal '0' ([string]$repaired.ExitCode) "L a repair install succeeds: $($repaired.Output)"
+    Assert-Equal 'standard' (Get-ConfigValue (Read-SandboxJson $script:SandboxConfig) 'detailLevel') 'L an unrecognised stored level is repaired to standard'
+
+    # A recognised level spelled differently still means the same level. The
+    # notifier reads it case-insensitively, so a reinstall must not quietly
+    # restore the default instead.
+    Set-SandboxConfigValue { param($c) $c.detailLevel = 'MINIMAL' }
+    $cased = Invoke-InSandbox -Script $install
+    Assert-Equal '0' ([string]$cased.ExitCode) "L a cased-level reinstall succeeds: $($cased.Output)"
+    Assert-Equal 'minimal' (Get-ConfigValue (Read-SandboxJson $script:SandboxConfig) 'detailLevel') 'L a recognised level keeps its meaning whatever its casing'
+
+    # The notifier itself must survive every stored level, including one a hand
+    # edit introduced between installs. An unusable value degrades; it never
+    # costs the user the notification.
+    Set-SandboxConfigValue { param($c) $c.desktop.enabled = $false; $c.mobile.enabled = $false }
+    foreach ($stored in @('minimal', 'standard', 'detailed', '')) {
+        Set-SandboxConfigValue ({ param($c) $c.detailLevel = $stored }.GetNewClosure())
+        $run = Invoke-InSandbox -Script $script:SandboxNotify -ScriptArguments @('finished') -StandardInput $startPayload
+        Assert-Equal '0' ([string]$run.ExitCode) "L the notifier runs with a stored level of '$stored': $($run.Output)"
+    }
+
+    # F. several installs later there is still exactly one handler per event.
     $settings = Read-SandboxJson $script:SandboxSettings
     foreach ($eventName in $expectedStates.Keys) {
         Assert-Equal '1' ([string](Measure-SandboxHandlers -Settings $settings -EventName $eventName).Count) "F $eventName still has exactly one handler after repeated installs"
@@ -334,7 +410,7 @@ function Invoke-LifecycleSuite {
     # K. the real home was never written to.
     Assert-That ($script:RealHome -ne $script:SandboxHome) 'K the sandbox and the real home stayed different'
 
-    Complete-Suite 'lifecycle' 64
+    Complete-Suite 'lifecycle' 91
 }
 
 # --------------------------------------------------------------------------

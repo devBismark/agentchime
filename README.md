@@ -115,6 +115,29 @@ Finished and error notifications also report how long the turn took, for example
 install with `-DisableDuration`, or set `privacy.sendDuration` to `false` in
 `~/.agentchime/config.json`, to get the plain v0.1 wording back.
 
+### Notification detail
+
+`detailLevel` decides how much context the body carries. There are two levels,
+because the notifier renders exactly three pieces of variable context: the
+project label, the API error type and the elapsed time.
+
+| Level | Example body |
+|---|---|
+| `standard` (default) | `my-project - Claude stopped because of an error (ToolExecutionFailure). (18m 42s)` |
+| `minimal` | `Claude stopped because of an error.` |
+
+The title, the priority and the ntfy tags are the same at both levels, so a
+minimal notification still tells you which state it is reporting.
+
+Install with `-DetailLevel minimal`, or set `detailLevel` in
+`~/.agentchime/config.json`. A configuration with no `detailLevel` key, or one
+that spells it wrongly, renders standard notifications.
+
+The level chooses only among context your privacy preferences already allow. It
+can leave something out, never put something back: with `sendProjectName` off,
+no level shows the folder name, and with `sendDuration` off, no level shows the
+elapsed time.
+
 AgentChime intentionally does **not** map `idle_prompt` to the attention state. `Stop` already sends the completion alert, and mapping both can create a delayed duplicate notification.
 
 Existing unrelated Claude hooks are preserved. AgentChime also backs up Claude settings before modifying them and avoids duplicate AgentChime handlers on reinstall.
@@ -195,6 +218,9 @@ When using public `ntfy.sh`, AgentChime sends only minimal status context:
 - generic notification text
 - API error type when available
 - elapsed turn time, if enabled
+
+At the `minimal` detail level, none of the folder name, the error type or the
+elapsed time is sent at all.
 
 **Never sent by AgentChime**
 

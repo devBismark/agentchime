@@ -12,6 +12,8 @@ Allowed by default:
 - API error category on `StopFailure`
 - elapsed turn time
 
+The `detailLevel` setting can narrow that list further; it can never widen it.
+
 Not sent:
 
 - user prompt
@@ -51,6 +53,29 @@ behind by a crashed session is deleted once it is older than 24 hours.
 
 Uninstalling removes `~/.agentchime/turns/` entirely, including with
 `-KeepConfig`.
+
+## Notification detail level
+
+`detailLevel` in `~/.agentchime/config.json` decides how much of the allowed
+context actually reaches a notification.
+
+| Level | Project label | API error type | Elapsed time |
+| --- | --- | --- | --- |
+| `standard` (default) | if `privacy.sendProjectName` | yes | if `privacy.sendDuration` |
+| `minimal` | never | never | never |
+
+Privacy overrides detail. The level only chooses among information the privacy
+preferences have already authorized, so it can subtract and never add: with
+`sendProjectName` set to `false` the folder name is absent at every level, and
+with `sendDuration` set to `false` so is the elapsed time. No detail level can
+reach back for something a privacy preference suppressed.
+
+A configuration with no `detailLevel` key renders exactly the notifications it
+rendered before the key existed, and an unrecognised value degrades to
+`standard` rather than failing the notification.
+
+Detail level changes nothing about what is measured or stored. Turn state is
+still governed by `privacy.sendDuration` alone.
 
 ## Public ntfy topics
 

@@ -7,7 +7,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('normalize', 'baseline', 'locales', 'privacy', 'desktop', 'ntfy', 'scope', 'clean', 'ci', 'contract')]
+    [ValidateSet('normalize', 'baseline', 'detail', 'locales', 'privacy', 'desktop', 'ntfy', 'scope', 'clean', 'ci', 'contract')]
     [string]$Suite
 )
 
@@ -24,7 +24,10 @@ $FixturePath = Join-Path $PSScriptRoot 'fixtures\baseline-messages.json'
 $FixtureCommit = '1d63f8fba1ddfab204d8d19436b8c872b0b0d812'
 
 # The commit this step started from. Scope is measured against it.
-$StepBaselineCommit = '41e4197dcfda2802eba3bebf98b617c1a06628b4'
+$StepBaselineCommit = '2f5c15adf8aa97b87939baa21797a947fbd8ec98'
+
+# The probe used by the detail suite's mutation controls.
+$ProbePath = Join-Path $PSScriptRoot 'mutation-probe.ps1'
 
 # Loads the functions only. The state argument satisfies the mandatory
 # parameter; the dot-source guard inside notify.ps1 suppresses the main flow.
@@ -141,6 +144,7 @@ $script:ClaudeVocabulary = @(
 # whole turn-duration store, which is handed opaque keys rather than ids.
 $script:DownstreamFunctions = @(
     'Get-AgentMessage',
+    'Resolve-DetailLevel',
     'Get-DesktopStyle',
     'Send-WindowsNotification',
     'Send-NtfyNotification',
@@ -326,6 +330,260 @@ function Invoke-BaselineSuite {
     }
 
     Complete-Suite 'baseline' 85
+}
+
+# --------------------------------------------------------------------------
+# Suite: detail
+# --------------------------------------------------------------------------
+
+# The exact body every state, locale and level must produce for one event that
+# carries all three pieces of context. Written out in full rather than built
+# from the renderer, so a change to the wording has to be made here too.
+$script:DetailBodies = [ordered]@{
+    'standard|en|finished'     = 'my-project - Claude finished the task. (18m 42s)'
+    'standard|en|attention'    = 'my-project - Claude is waiting for your input. (18m 42s)'
+    'standard|en|error'        = 'my-project - Claude stopped because of an error (ToolExecutionFailure). (18m 42s)'
+    'standard|pt-BR|finished'  = 'my-project - O Claude terminou o trabalho. (18min 42s)'
+    'standard|pt-BR|attention' = 'my-project - O Claude esta esperando sua intervencao. (18min 42s)'
+    'standard|pt-BR|error'     = 'my-project - O Claude interrompeu o trabalho (ToolExecutionFailure). (18min 42s)'
+    'minimal|en|finished'      = 'Claude finished the task.'
+    'minimal|en|attention'     = 'Claude is waiting for your input.'
+    'minimal|en|error'         = 'Claude stopped because of an error.'
+    'minimal|pt-BR|finished'   = 'O Claude terminou o trabalho.'
+    'minimal|pt-BR|attention'  = 'O Claude esta esperando sua intervencao.'
+    'minimal|pt-BR|error'      = 'O Claude interrompeu o trabalho.'
+}
+
+$script:DetailSandbox = ''
+function Get-DetailSandbox {
+    if ([string]::IsNullOrWhiteSpace($script:DetailSandbox)) {
+        $script:DetailSandbox = Join-Path ([System.IO.Path]::GetTempPath()) ('agentchime-detail-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Force -Path $script:DetailSandbox | Out-Null
+    }
+    return $script:DetailSandbox
+}
+
+# Runs one probe against a copy of the notifier with a single literal
+# substitution applied, and returns its verdict line.
+function Invoke-DetailMutationProbe {
+    param(
+        [string]$Probe,
+        [string]$Find = '',
+        [string]$Replace = ''
+    )
+
+    $notifier = $NotifyPath
+    if (-not [string]::IsNullOrWhiteSpace($Find)) {
+        $source = Get-Content $NotifyPath -Raw
+        if (-not $source.Contains($Find)) { return "MUTATION-TARGET-MISSING [$Find]" }
+        $notifier = Join-Path (Get-DetailSandbox) ('mutant-' + [guid]::NewGuid().ToString('N') + '.ps1')
+        $source.Replace($Find, $Replace) | Set-Content -Path $notifier -Encoding UTF8
+    }
+
+    # The probe is deliberately pointed at broken code, so its stderr must be
+    # captured rather than promoted into a terminating error.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ProbePath -Notifier $notifier -Probe $Probe 2>&1
+    }
+    finally {
+        $ErrorActionPreference = $previous
+    }
+
+    return (($output | Out-String).Trim())
+}
+
+# One event carrying every piece of context the notifier can render.
+function New-DetailEvent {
+    param(
+        [string]$State,
+        [string]$Locale,
+        [bool]$SendProjectName = $true,
+        [bool]$SendDuration = $true
+    )
+    $payload = ([ordered]@{ cwd = 'C:\dev\my-project'; error = 'ToolExecutionFailure' } | ConvertTo-Json -Compress | ConvertFrom-Json)
+    $duration = if ($SendDuration) { 1122000 } else { $null }
+    return (ConvertTo-AgentEvent -Payload $payload -EventState $State -Locale $Locale -IncludeProjectLabel $SendProjectName -DurationMs $duration)
+}
+
+# A configuration in the shape ConvertFrom-Json actually produces, so the
+# preference reader is exercised against real property types rather than a
+# hand-built object.
+function New-DetailConfig([object]$Value, [bool]$Include = $true) {
+    $table = [ordered]@{ version = '0.1.0'; locale = 'en' }
+    if ($Include) { $table['detailLevel'] = $Value }
+    $table['desktop'] = [ordered]@{ enabled = $true }
+    return ($table | ConvertTo-Json -Depth 5 -Compress | ConvertFrom-Json)
+}
+
+function Invoke-DetailSuite {
+    try {
+        # A. resolution. Every recognised spelling, and everything else
+        # degrading to the level that reproduces the v0.1 message.
+        # Pairs rather than a hashtable: PowerShell hash keys are case
+        # insensitive, and the casing is part of what is under test.
+        $resolution = @(
+            @('minimal', 'minimal'),
+            @('MINIMAL', 'minimal'),
+            @('Minimal', 'minimal'),
+            @('  minimal', 'minimal'),
+            @('minimal  ', 'minimal'),
+            @('standard', 'standard'),
+            @('STANDARD', 'standard'),
+            @(' standard', 'standard'),
+            @('detailed', 'standard'),
+            @('verbose', 'standard'),
+            @('min', 'standard'),
+            @('minimal!', 'standard'),
+            @('full', 'standard'),
+            @('', 'standard'),
+            @('   ', 'standard')
+        )
+        foreach ($pair in $resolution) {
+            Assert-Equal ([string]$pair[1]) (Resolve-DetailLevel $pair[0]) "A '$($pair[0])' resolves"
+        }
+
+        # Anything that is not a string carries no instruction at all.
+        $nonStrings = [ordered]@{
+            'null'    = $null
+            'number'  = 42
+            'boolean' = $true
+            'array'   = @('minimal')
+            'object'  = ([pscustomobject]@{ level = 'minimal' })
+        }
+        foreach ($kind in $nonStrings.Keys) {
+            Assert-Equal 'standard' (Resolve-DetailLevel $nonStrings[$kind]) "A a $kind value resolves to standard"
+        }
+
+        # B. the configuration contract, read from real JSON shapes.
+        Assert-Equal 'standard' (Get-DetailLevelPreference -Config (New-DetailConfig -Value $null -Include $false)) 'B a config with no detailLevel key is standard'
+        Assert-Equal 'minimal' (Get-DetailLevelPreference -Config (New-DetailConfig -Value 'minimal')) 'B a config asking for minimal gets minimal'
+        Assert-Equal 'standard' (Get-DetailLevelPreference -Config (New-DetailConfig -Value 'standard')) 'B a config asking for standard gets standard'
+        foreach ($bad in @('detailed', 'verbose', '', '   ', 42, $true)) {
+            Assert-Equal 'standard' (Get-DetailLevelPreference -Config (New-DetailConfig -Value $bad)) "B an invalid stored value '$bad' degrades to standard"
+        }
+        Assert-Equal 'standard' (Get-DetailLevelPreference -Config $null) 'B an unreadable config degrades to standard'
+
+        # C. the rendered body at each level, for every state and locale.
+        foreach ($level in @('standard', 'minimal')) {
+            foreach ($locale in @('en', 'pt-BR')) {
+                foreach ($state in @('finished', 'attention', 'error')) {
+                    $agentEvent = New-DetailEvent -State $state -Locale $locale
+                    $message = Get-AgentMessage -AgentEvent $agentEvent -Detail $level
+                    Assert-Equal ([string]$script:DetailBodies["$level|$locale|$state"]) ([string]$message.Body) "C $level/$locale/$state body"
+                }
+            }
+        }
+
+        # D. the level never moves the title, the priority or the tags. A
+        # minimal notification still says which state it is reporting.
+        foreach ($locale in @('en', 'pt-BR')) {
+            foreach ($state in @('finished', 'attention', 'error')) {
+                $agentEvent = New-DetailEvent -State $state -Locale $locale
+                $standard = Get-AgentMessage -AgentEvent $agentEvent -Detail 'standard'
+                $minimal = Get-AgentMessage -AgentEvent $agentEvent -Detail 'minimal'
+                $diffs = @(Compare-Message -Expected ([pscustomobject]$standard) -Actual $minimal)
+                Assert-Equal 'Body' ($diffs -join ',') "D only the body differs between levels for $locale/$state"
+            }
+        }
+
+        # E. the default. Omitting the argument, passing standard, and passing
+        # anything unrecognised must all render the same message, because that
+        # is what an install written before this key existed will do.
+        foreach ($locale in @('en', 'pt-BR')) {
+            foreach ($state in @('finished', 'attention', 'error')) {
+                $agentEvent = New-DetailEvent -State $state -Locale $locale
+                $omitted = Get-AgentMessage -AgentEvent $agentEvent
+                foreach ($supplied in @('standard', 'detailed', '', 'nonsense')) {
+                    $actual = Get-AgentMessage -AgentEvent $agentEvent -Detail $supplied
+                    $diffs = @(Compare-Message -Expected ([pscustomobject]$omitted) -Actual $actual)
+                    Assert-Equal '' ($diffs -join ',') "E '$supplied' renders the default message for $locale/$state"
+                }
+            }
+        }
+
+        # F. privacy outranks detail, across the whole matrix.
+        foreach ($level in @('standard', 'minimal')) {
+            foreach ($locale in @('en', 'pt-BR')) {
+                foreach ($state in @('finished', 'attention', 'error')) {
+                    foreach ($sendProject in @($true, $false)) {
+                        foreach ($sendDuration in @($true, $false)) {
+                            $label = "$level/$locale/$state/project=$sendProject/duration=$sendDuration"
+                            $agentEvent = New-DetailEvent -State $state -Locale $locale -SendProjectName $sendProject -SendDuration $sendDuration
+                            $body = [string](Get-AgentMessage -AgentEvent $agentEvent -Detail $level).Body
+                            $elapsed = if ($locale -eq 'pt-BR') { '18min 42s' } else { '18m 42s' }
+
+                            # A suppressed project name never appears, whatever
+                            # the level asks for.
+                            if (-not $sendProject) {
+                                Assert-That ($body -notlike '*my-project*') "F the project name stays suppressed for $label"
+                            }
+
+                            # A suppressed measurement never appears either.
+                            if (-not $sendDuration) {
+                                Assert-That ($body -notlike ('*' + $elapsed + '*')) "F the elapsed time stays suppressed for $label"
+                            }
+
+                            # The minimal level drops all three regardless of
+                            # what privacy allowed.
+                            if ($level -eq 'minimal') {
+                                Assert-That ($body -notlike '*my-project*') "F minimal carries no project name for $label"
+                                Assert-That ($body -notlike ('*' + $elapsed + '*')) "F minimal carries no elapsed time for $label"
+                                Assert-That ($body -notlike '*ToolExecutionFailure*') "F minimal carries no error type for $label"
+                            }
+
+                            # Non-vacuity: with everything allowed, the standard
+                            # level must actually be showing all of it.
+                            if ($level -eq 'standard' -and $sendProject -and $sendDuration) {
+                                Assert-That ($body -like '*my-project*') "F standard shows the project name for $label"
+                                Assert-That ($body -like ('*' + $elapsed + '*')) "F standard shows the elapsed time for $label"
+                                if ($state -eq 'error') {
+                                    Assert-That ($body -like '*ToolExecutionFailure*') "F standard shows the error type for $label"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        # G. mutation controls. The oracles above must be able to fail, so run
+        # the probes against deliberately broken copies of the notifier.
+        Assert-Equal 'PROBE detail : SURVIVED' (Invoke-DetailMutationProbe -Probe 'detail') 'G the detail probe survives the real notifier'
+        Assert-Equal 'PROBE detail-privacy : SURVIVED' (Invoke-DetailMutationProbe -Probe 'detail-privacy') 'G the privacy probe survives the real notifier'
+
+        # The find strings escape their dollar signs, so each one is the literal
+        # line as it appears in the notifier rather than an interpolation.
+        $mutants = [ordered]@{
+            'a level that is never applied'     = @{ Probe = 'detail'; Find = "    if (`$level -eq 'minimal') {"; Replace = "    if (`$false) {" }
+            'a level that is always minimal'    = @{ Probe = 'detail'; Find = "    `$level = Resolve-DetailLevel `$Detail"; Replace = "    `$level = 'minimal'" }
+            'a level that keeps the error type' = @{ Probe = 'detail'; Find = "        `$errorType = ''"; Replace = "        `$errorType = `$errorType" }
+            'a renderer that invents a label'   = @{ Probe = 'detail-privacy'; Find = "    `$project = [string]`$AgentEvent.projectLabel"; Replace = "    `$project = 'my-project'" }
+            'a renderer that invents a time'    = @{ Probe = 'detail-privacy'; Find = "    `$durationMs = `$AgentEvent.durationMs"; Replace = "    `$durationMs = 1122000" }
+        }
+        foreach ($name in $mutants.Keys) {
+            $mutant = $mutants[$name]
+            $verdict = Invoke-DetailMutationProbe -Probe $mutant.Probe -Find $mutant.Find -Replace $mutant.Replace
+            Assert-Equal ('PROBE ' + $mutant.Probe + ' : KILLED') $verdict "G the probe kills $name"
+        }
+
+        # H. the preference is actually wired into the one place that sends a
+        # notification, rather than only being renderable from a test.
+        $mainText = (Get-FunctionAst 'Invoke-AgentChimeNotification').Extent.Text
+        Assert-That ($mainText -match '\$detailLevel\s*=\s*Get-DetailLevelPreference\s+-Config\s+\$config') 'H the notifier reads the configured level'
+        Assert-That ($mainText -match 'Get-AgentMessage\s+-AgentEvent\s+\$agentEvent\s+-Detail\s+\$detailLevel') 'H the notifier renders with the configured level'
+
+        # H control: the same matcher must reject a call that is not there.
+        Assert-That (-not ($mainText -match 'Get-AgentMessage\s+-AgentEvent\s+\$agentEvent\s+-Detail\s+\$notAThing')) 'H wiring detector control rejects a call that is absent'
+    }
+    finally {
+        if (-not [string]::IsNullOrWhiteSpace($script:DetailSandbox) -and (Test-Path $script:DetailSandbox)) {
+            Remove-Item $script:DetailSandbox -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Complete-Suite 'detail' 190
 }
 
 # --------------------------------------------------------------------------
@@ -627,6 +885,7 @@ function Invoke-ScopeSuite {
             'mobile auth'          = 'Authorization\s*=|ntfyToken|accessToken'
             'a command line tool'  = 'function\s+Invoke-AgentChimeCli|agentchime-cli'
             'codex support'        = 'ConvertTo-CodexEvent|Get-CodexPayloadValue|provider\s*=\s*.codex'
+            'smarter project labels' = 'Get-SmartProjectLabel|Get-GitProjectLabel|projectLabelStrategy'
         }
         $sources = @('src/notify.ps1', 'install.ps1', 'agentchime.ps1', 'uninstall.ps1', 'bootstrap.ps1')
         $sourceText = (@($sources | ForEach-Object { Get-Content (Join-Path $RepoRoot $_) -Raw }) -join "`n")
@@ -723,6 +982,7 @@ function Invoke-CiSuite {
 switch ($Suite) {
     'normalize' { Invoke-NormalizeSuite }
     'baseline'  { Invoke-BaselineSuite }
+    'detail'    { Invoke-DetailSuite }
     'locales'   { Invoke-LocalesSuite }
     'privacy'   { Invoke-PrivacySuite }
     'desktop'   { Invoke-DesktopSuite }
@@ -733,6 +993,7 @@ switch ($Suite) {
     'contract'  {
         Invoke-NormalizeSuite
         Invoke-BaselineSuite
+        Invoke-DetailSuite
         Invoke-LocalesSuite
         Invoke-PrivacySuite
         Invoke-DesktopSuite
