@@ -12,3 +12,6 @@ jobs:
       - name: Validate repository
         shell: powershell
         run: .\tests\validate-repo.ps1
+      - name: Notifier contract tests
+        shell: powershell
+        run: .\tests\notify-contract.ps1 -Suite contract

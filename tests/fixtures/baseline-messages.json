@@ -1,0 +1,438 @@
+﻿{
+    "description":  "Byte-for-byte message contract captured from src/notify.ps1 at commit 1d63f8f, before the normalized event model refactor. Any change here is an observable behavior change.",
+    "baselineCommit":  "1d63f8fba1ddfab204d8d19436b8c872b0b0d812",
+    "cases":  {
+                  "full|en|sendProjectName=True|finished":  {
+                                                                "Title":  "Claude Code - FINISHED",
+                                                                "Body":  "agentchime - Claude finished the task.",
+                                                                "Priority":  "default",
+                                                                "Tags":  "white_check_mark,robot_face"
+                                                            },
+                  "full|en|sendProjectName=True|attention":  {
+                                                                 "Title":  "Claude Code - ATTENTION",
+                                                                 "Body":  "agentchime - Claude is waiting for your input.",
+                                                                 "Priority":  "high",
+                                                                 "Tags":  "warning,robot_face"
+                                                             },
+                  "full|en|sendProjectName=True|error":  {
+                                                             "Title":  "Claude Code - ERROR",
+                                                             "Body":  "agentchime - Claude stopped because of an error (ToolExecutionFailure).",
+                                                             "Priority":  "high",
+                                                             "Tags":  "x,robot_face"
+                                                         },
+                  "full|en|sendProjectName=False|finished":  {
+                                                                 "Title":  "Claude Code - FINISHED",
+                                                                 "Body":  "Claude Code - Claude finished the task.",
+                                                                 "Priority":  "default",
+                                                                 "Tags":  "white_check_mark,robot_face"
+                                                             },
+                  "full|en|sendProjectName=False|attention":  {
+                                                                  "Title":  "Claude Code - ATTENTION",
+                                                                  "Body":  "Claude Code - Claude is waiting for your input.",
+                                                                  "Priority":  "high",
+                                                                  "Tags":  "warning,robot_face"
+                                                              },
+                  "full|en|sendProjectName=False|error":  {
+                                                              "Title":  "Claude Code - ERROR",
+                                                              "Body":  "Claude Code - Claude stopped because of an error (ToolExecutionFailure).",
+                                                              "Priority":  "high",
+                                                              "Tags":  "x,robot_face"
+                                                          },
+                  "full|pt-BR|sendProjectName=True|finished":  {
+                                                                   "Title":  "Claude Code - FINALIZADO",
+                                                                   "Body":  "agentchime - O Claude terminou o trabalho.",
+                                                                   "Priority":  "default",
+                                                                   "Tags":  "white_check_mark,robot_face"
+                                                               },
+                  "full|pt-BR|sendProjectName=True|attention":  {
+                                                                    "Title":  "Claude Code - ATENCAO",
+                                                                    "Body":  "agentchime - O Claude esta esperando sua intervencao.",
+                                                                    "Priority":  "high",
+                                                                    "Tags":  "warning,robot_face"
+                                                                },
+                  "full|pt-BR|sendProjectName=True|error":  {
+                                                                "Title":  "Claude Code - ERRO",
+                                                                "Body":  "agentchime - O Claude interrompeu o trabalho (ToolExecutionFailure).",
+                                                                "Priority":  "high",
+                                                                "Tags":  "x,robot_face"
+                                                            },
+                  "full|pt-BR|sendProjectName=False|finished":  {
+                                                                    "Title":  "Claude Code - FINALIZADO",
+                                                                    "Body":  "Claude Code - O Claude terminou o trabalho.",
+                                                                    "Priority":  "default",
+                                                                    "Tags":  "white_check_mark,robot_face"
+                                                                },
+                  "full|pt-BR|sendProjectName=False|attention":  {
+                                                                     "Title":  "Claude Code - ATENCAO",
+                                                                     "Body":  "Claude Code - O Claude esta esperando sua intervencao.",
+                                                                     "Priority":  "high",
+                                                                     "Tags":  "warning,robot_face"
+                                                                 },
+                  "full|pt-BR|sendProjectName=False|error":  {
+                                                                 "Title":  "Claude Code - ERRO",
+                                                                 "Body":  "Claude Code - O Claude interrompeu o trabalho (ToolExecutionFailure).",
+                                                                 "Priority":  "high",
+                                                                 "Tags":  "x,robot_face"
+                                                             },
+                  "no-error|en|sendProjectName=True|finished":  {
+                                                                    "Title":  "Claude Code - FINISHED",
+                                                                    "Body":  "my-project - Claude finished the task.",
+                                                                    "Priority":  "default",
+                                                                    "Tags":  "white_check_mark,robot_face"
+                                                                },
+                  "no-error|en|sendProjectName=True|attention":  {
+                                                                     "Title":  "Claude Code - ATTENTION",
+                                                                     "Body":  "my-project - Claude is waiting for your input.",
+                                                                     "Priority":  "high",
+                                                                     "Tags":  "warning,robot_face"
+                                                                 },
+                  "no-error|en|sendProjectName=True|error":  {
+                                                                 "Title":  "Claude Code - ERROR",
+                                                                 "Body":  "my-project - Claude stopped because of an error.",
+                                                                 "Priority":  "high",
+                                                                 "Tags":  "x,robot_face"
+                                                             },
+                  "no-error|en|sendProjectName=False|finished":  {
+                                                                     "Title":  "Claude Code - FINISHED",
+                                                                     "Body":  "Claude Code - Claude finished the task.",
+                                                                     "Priority":  "default",
+                                                                     "Tags":  "white_check_mark,robot_face"
+                                                                 },
+                  "no-error|en|sendProjectName=False|attention":  {
+                                                                      "Title":  "Claude Code - ATTENTION",
+                                                                      "Body":  "Claude Code - Claude is waiting for your input.",
+                                                                      "Priority":  "high",
+                                                                      "Tags":  "warning,robot_face"
+                                                                  },
+                  "no-error|en|sendProjectName=False|error":  {
+                                                                  "Title":  "Claude Code - ERROR",
+                                                                  "Body":  "Claude Code - Claude stopped because of an error.",
+                                                                  "Priority":  "high",
+                                                                  "Tags":  "x,robot_face"
+                                                              },
+                  "no-error|pt-BR|sendProjectName=True|finished":  {
+                                                                       "Title":  "Claude Code - FINALIZADO",
+                                                                       "Body":  "my-project - O Claude terminou o trabalho.",
+                                                                       "Priority":  "default",
+                                                                       "Tags":  "white_check_mark,robot_face"
+                                                                   },
+                  "no-error|pt-BR|sendProjectName=True|attention":  {
+                                                                        "Title":  "Claude Code - ATENCAO",
+                                                                        "Body":  "my-project - O Claude esta esperando sua intervencao.",
+                                                                        "Priority":  "high",
+                                                                        "Tags":  "warning,robot_face"
+                                                                    },
+                  "no-error|pt-BR|sendProjectName=True|error":  {
+                                                                    "Title":  "Claude Code - ERRO",
+                                                                    "Body":  "my-project - O Claude interrompeu o trabalho.",
+                                                                    "Priority":  "high",
+                                                                    "Tags":  "x,robot_face"
+                                                                },
+                  "no-error|pt-BR|sendProjectName=False|finished":  {
+                                                                        "Title":  "Claude Code - FINALIZADO",
+                                                                        "Body":  "Claude Code - O Claude terminou o trabalho.",
+                                                                        "Priority":  "default",
+                                                                        "Tags":  "white_check_mark,robot_face"
+                                                                    },
+                  "no-error|pt-BR|sendProjectName=False|attention":  {
+                                                                         "Title":  "Claude Code - ATENCAO",
+                                                                         "Body":  "Claude Code - O Claude esta esperando sua intervencao.",
+                                                                         "Priority":  "high",
+                                                                         "Tags":  "warning,robot_face"
+                                                                     },
+                  "no-error|pt-BR|sendProjectName=False|error":  {
+                                                                     "Title":  "Claude Code - ERRO",
+                                                                     "Body":  "Claude Code - O Claude interrompeu o trabalho.",
+                                                                     "Priority":  "high",
+                                                                     "Tags":  "x,robot_face"
+                                                                 },
+                  "null|en|sendProjectName=True|finished":  {
+                                                                "Title":  "Claude Code - FINISHED",
+                                                                "Body":  "Claude Code - Claude finished the task.",
+                                                                "Priority":  "default",
+                                                                "Tags":  "white_check_mark,robot_face"
+                                                            },
+                  "null|en|sendProjectName=True|attention":  {
+                                                                 "Title":  "Claude Code - ATTENTION",
+                                                                 "Body":  "Claude Code - Claude is waiting for your input.",
+                                                                 "Priority":  "high",
+                                                                 "Tags":  "warning,robot_face"
+                                                             },
+                  "null|en|sendProjectName=True|error":  {
+                                                             "Title":  "Claude Code - ERROR",
+                                                             "Body":  "Claude Code - Claude stopped because of an error.",
+                                                             "Priority":  "high",
+                                                             "Tags":  "x,robot_face"
+                                                         },
+                  "null|en|sendProjectName=False|finished":  {
+                                                                 "Title":  "Claude Code - FINISHED",
+                                                                 "Body":  "Claude Code - Claude finished the task.",
+                                                                 "Priority":  "default",
+                                                                 "Tags":  "white_check_mark,robot_face"
+                                                             },
+                  "null|en|sendProjectName=False|attention":  {
+                                                                  "Title":  "Claude Code - ATTENTION",
+                                                                  "Body":  "Claude Code - Claude is waiting for your input.",
+                                                                  "Priority":  "high",
+                                                                  "Tags":  "warning,robot_face"
+                                                              },
+                  "null|en|sendProjectName=False|error":  {
+                                                              "Title":  "Claude Code - ERROR",
+                                                              "Body":  "Claude Code - Claude stopped because of an error.",
+                                                              "Priority":  "high",
+                                                              "Tags":  "x,robot_face"
+                                                          },
+                  "null|pt-BR|sendProjectName=True|finished":  {
+                                                                   "Title":  "Claude Code - FINALIZADO",
+                                                                   "Body":  "Claude Code - O Claude terminou o trabalho.",
+                                                                   "Priority":  "default",
+                                                                   "Tags":  "white_check_mark,robot_face"
+                                                               },
+                  "null|pt-BR|sendProjectName=True|attention":  {
+                                                                    "Title":  "Claude Code - ATENCAO",
+                                                                    "Body":  "Claude Code - O Claude esta esperando sua intervencao.",
+                                                                    "Priority":  "high",
+                                                                    "Tags":  "warning,robot_face"
+                                                                },
+                  "null|pt-BR|sendProjectName=True|error":  {
+                                                                "Title":  "Claude Code - ERRO",
+                                                                "Body":  "Claude Code - O Claude interrompeu o trabalho.",
+                                                                "Priority":  "high",
+                                                                "Tags":  "x,robot_face"
+                                                            },
+                  "null|pt-BR|sendProjectName=False|finished":  {
+                                                                    "Title":  "Claude Code - FINALIZADO",
+                                                                    "Body":  "Claude Code - O Claude terminou o trabalho.",
+                                                                    "Priority":  "default",
+                                                                    "Tags":  "white_check_mark,robot_face"
+                                                                },
+                  "null|pt-BR|sendProjectName=False|attention":  {
+                                                                     "Title":  "Claude Code - ATENCAO",
+                                                                     "Body":  "Claude Code - O Claude esta esperando sua intervencao.",
+                                                                     "Priority":  "high",
+                                                                     "Tags":  "warning,robot_face"
+                                                                 },
+                  "null|pt-BR|sendProjectName=False|error":  {
+                                                                 "Title":  "Claude Code - ERRO",
+                                                                 "Body":  "Claude Code - O Claude interrompeu o trabalho.",
+                                                                 "Priority":  "high",
+                                                                 "Tags":  "x,robot_face"
+                                                             },
+                  "empty-cwd|en|sendProjectName=True|finished":  {
+                                                                     "Title":  "Claude Code - FINISHED",
+                                                                     "Body":  "Claude Code - Claude finished the task.",
+                                                                     "Priority":  "default",
+                                                                     "Tags":  "white_check_mark,robot_face"
+                                                                 },
+                  "empty-cwd|en|sendProjectName=True|attention":  {
+                                                                      "Title":  "Claude Code - ATTENTION",
+                                                                      "Body":  "Claude Code - Claude is waiting for your input.",
+                                                                      "Priority":  "high",
+                                                                      "Tags":  "warning,robot_face"
+                                                                  },
+                  "empty-cwd|en|sendProjectName=True|error":  {
+                                                                  "Title":  "Claude Code - ERROR",
+                                                                  "Body":  "Claude Code - Claude stopped because of an error.",
+                                                                  "Priority":  "high",
+                                                                  "Tags":  "x,robot_face"
+                                                              },
+                  "empty-cwd|en|sendProjectName=False|finished":  {
+                                                                      "Title":  "Claude Code - FINISHED",
+                                                                      "Body":  "Claude Code - Claude finished the task.",
+                                                                      "Priority":  "default",
+                                                                      "Tags":  "white_check_mark,robot_face"
+                                                                  },
+                  "empty-cwd|en|sendProjectName=False|attention":  {
+                                                                       "Title":  "Claude Code - ATTENTION",
+                                                                       "Body":  "Claude Code - Claude is waiting for your input.",
+                                                                       "Priority":  "high",
+                                                                       "Tags":  "warning,robot_face"
+                                                                   },
+                  "empty-cwd|en|sendProjectName=False|error":  {
+                                                                   "Title":  "Claude Code - ERROR",
+                                                                   "Body":  "Claude Code - Claude stopped because of an error.",
+                                                                   "Priority":  "high",
+                                                                   "Tags":  "x,robot_face"
+                                                               },
+                  "empty-cwd|pt-BR|sendProjectName=True|finished":  {
+                                                                        "Title":  "Claude Code - FINALIZADO",
+                                                                        "Body":  "Claude Code - O Claude terminou o trabalho.",
+                                                                        "Priority":  "default",
+                                                                        "Tags":  "white_check_mark,robot_face"
+                                                                    },
+                  "empty-cwd|pt-BR|sendProjectName=True|attention":  {
+                                                                         "Title":  "Claude Code - ATENCAO",
+                                                                         "Body":  "Claude Code - O Claude esta esperando sua intervencao.",
+                                                                         "Priority":  "high",
+                                                                         "Tags":  "warning,robot_face"
+                                                                     },
+                  "empty-cwd|pt-BR|sendProjectName=True|error":  {
+                                                                     "Title":  "Claude Code - ERRO",
+                                                                     "Body":  "Claude Code - O Claude interrompeu o trabalho.",
+                                                                     "Priority":  "high",
+                                                                     "Tags":  "x,robot_face"
+                                                                 },
+                  "empty-cwd|pt-BR|sendProjectName=False|finished":  {
+                                                                         "Title":  "Claude Code - FINALIZADO",
+                                                                         "Body":  "Claude Code - O Claude terminou o trabalho.",
+                                                                         "Priority":  "default",
+                                                                         "Tags":  "white_check_mark,robot_face"
+                                                                     },
+                  "empty-cwd|pt-BR|sendProjectName=False|attention":  {
+                                                                          "Title":  "Claude Code - ATENCAO",
+                                                                          "Body":  "Claude Code - O Claude esta esperando sua intervencao.",
+                                                                          "Priority":  "high",
+                                                                          "Tags":  "warning,robot_face"
+                                                                      },
+                  "empty-cwd|pt-BR|sendProjectName=False|error":  {
+                                                                      "Title":  "Claude Code - ERRO",
+                                                                      "Body":  "Claude Code - O Claude interrompeu o trabalho.",
+                                                                      "Priority":  "high",
+                                                                      "Tags":  "x,robot_face"
+                                                                  },
+                  "blank-error|en|sendProjectName=True|finished":  {
+                                                                       "Title":  "Claude Code - FINISHED",
+                                                                       "Body":  "my-project - Claude finished the task.",
+                                                                       "Priority":  "default",
+                                                                       "Tags":  "white_check_mark,robot_face"
+                                                                   },
+                  "blank-error|en|sendProjectName=True|attention":  {
+                                                                        "Title":  "Claude Code - ATTENTION",
+                                                                        "Body":  "my-project - Claude is waiting for your input.",
+                                                                        "Priority":  "high",
+                                                                        "Tags":  "warning,robot_face"
+                                                                    },
+                  "blank-error|en|sendProjectName=True|error":  {
+                                                                    "Title":  "Claude Code - ERROR",
+                                                                    "Body":  "my-project - Claude stopped because of an error.",
+                                                                    "Priority":  "high",
+                                                                    "Tags":  "x,robot_face"
+                                                                },
+                  "blank-error|en|sendProjectName=False|finished":  {
+                                                                        "Title":  "Claude Code - FINISHED",
+                                                                        "Body":  "Claude Code - Claude finished the task.",
+                                                                        "Priority":  "default",
+                                                                        "Tags":  "white_check_mark,robot_face"
+                                                                    },
+                  "blank-error|en|sendProjectName=False|attention":  {
+                                                                         "Title":  "Claude Code - ATTENTION",
+                                                                         "Body":  "Claude Code - Claude is waiting for your input.",
+                                                                         "Priority":  "high",
+                                                                         "Tags":  "warning,robot_face"
+                                                                     },
+                  "blank-error|en|sendProjectName=False|error":  {
+                                                                     "Title":  "Claude Code - ERROR",
+                                                                     "Body":  "Claude Code - Claude stopped because of an error.",
+                                                                     "Priority":  "high",
+                                                                     "Tags":  "x,robot_face"
+                                                                 },
+                  "blank-error|pt-BR|sendProjectName=True|finished":  {
+                                                                          "Title":  "Claude Code - FINALIZADO",
+                                                                          "Body":  "my-project - O Claude terminou o trabalho.",
+                                                                          "Priority":  "default",
+                                                                          "Tags":  "white_check_mark,robot_face"
+                                                                      },
+                  "blank-error|pt-BR|sendProjectName=True|attention":  {
+                                                                           "Title":  "Claude Code - ATENCAO",
+                                                                           "Body":  "my-project - O Claude esta esperando sua intervencao.",
+                                                                           "Priority":  "high",
+                                                                           "Tags":  "warning,robot_face"
+                                                                       },
+                  "blank-error|pt-BR|sendProjectName=True|error":  {
+                                                                       "Title":  "Claude Code - ERRO",
+                                                                       "Body":  "my-project - O Claude interrompeu o trabalho.",
+                                                                       "Priority":  "high",
+                                                                       "Tags":  "x,robot_face"
+                                                                   },
+                  "blank-error|pt-BR|sendProjectName=False|finished":  {
+                                                                           "Title":  "Claude Code - FINALIZADO",
+                                                                           "Body":  "Claude Code - O Claude terminou o trabalho.",
+                                                                           "Priority":  "default",
+                                                                           "Tags":  "white_check_mark,robot_face"
+                                                                       },
+                  "blank-error|pt-BR|sendProjectName=False|attention":  {
+                                                                            "Title":  "Claude Code - ATENCAO",
+                                                                            "Body":  "Claude Code - O Claude esta esperando sua intervencao.",
+                                                                            "Priority":  "high",
+                                                                            "Tags":  "warning,robot_face"
+                                                                        },
+                  "blank-error|pt-BR|sendProjectName=False|error":  {
+                                                                        "Title":  "Claude Code - ERRO",
+                                                                        "Body":  "Claude Code - O Claude interrompeu o trabalho.",
+                                                                        "Priority":  "high",
+                                                                        "Tags":  "x,robot_face"
+                                                                    },
+                  "unrelated|en|sendProjectName=True|finished":  {
+                                                                     "Title":  "Claude Code - FINISHED",
+                                                                     "Body":  "Claude Code - Claude finished the task.",
+                                                                     "Priority":  "default",
+                                                                     "Tags":  "white_check_mark,robot_face"
+                                                                 },
+                  "unrelated|en|sendProjectName=True|attention":  {
+                                                                      "Title":  "Claude Code - ATTENTION",
+                                                                      "Body":  "Claude Code - Claude is waiting for your input.",
+                                                                      "Priority":  "high",
+                                                                      "Tags":  "warning,robot_face"
+                                                                  },
+                  "unrelated|en|sendProjectName=True|error":  {
+                                                                  "Title":  "Claude Code - ERROR",
+                                                                  "Body":  "Claude Code - Claude stopped because of an error.",
+                                                                  "Priority":  "high",
+                                                                  "Tags":  "x,robot_face"
+                                                              },
+                  "unrelated|en|sendProjectName=False|finished":  {
+                                                                      "Title":  "Claude Code - FINISHED",
+                                                                      "Body":  "Claude Code - Claude finished the task.",
+                                                                      "Priority":  "default",
+                                                                      "Tags":  "white_check_mark,robot_face"
+                                                                  },
+                  "unrelated|en|sendProjectName=False|attention":  {
+                                                                       "Title":  "Claude Code - ATTENTION",
+                                                                       "Body":  "Claude Code - Claude is waiting for your input.",
+                                                                       "Priority":  "high",
+                                                                       "Tags":  "warning,robot_face"
+                                                                   },
+                  "unrelated|en|sendProjectName=False|error":  {
+                                                                   "Title":  "Claude Code - ERROR",
+                                                                   "Body":  "Claude Code - Claude stopped because of an error.",
+                                                                   "Priority":  "high",
+                                                                   "Tags":  "x,robot_face"
+                                                               },
+                  "unrelated|pt-BR|sendProjectName=True|finished":  {
+                                                                        "Title":  "Claude Code - FINALIZADO",
+                                                                        "Body":  "Claude Code - O Claude terminou o trabalho.",
+                                                                        "Priority":  "default",
+                                                                        "Tags":  "white_check_mark,robot_face"
+                                                                    },
+                  "unrelated|pt-BR|sendProjectName=True|attention":  {
+                                                                         "Title":  "Claude Code - ATENCAO",
+                                                                         "Body":  "Claude Code - O Claude esta esperando sua intervencao.",
+                                                                         "Priority":  "high",
+                                                                         "Tags":  "warning,robot_face"
+                                                                     },
+                  "unrelated|pt-BR|sendProjectName=True|error":  {
+                                                                     "Title":  "Claude Code - ERRO",
+                                                                     "Body":  "Claude Code - O Claude interrompeu o trabalho.",
+                                                                     "Priority":  "high",
+                                                                     "Tags":  "x,robot_face"
+                                                                 },
+                  "unrelated|pt-BR|sendProjectName=False|finished":  {
+                                                                         "Title":  "Claude Code - FINALIZADO",
+                                                                         "Body":  "Claude Code - O Claude terminou o trabalho.",
+                                                                         "Priority":  "default",
+                                                                         "Tags":  "white_check_mark,robot_face"
+                                                                     },
+                  "unrelated|pt-BR|sendProjectName=False|attention":  {
+                                                                          "Title":  "Claude Code - ATENCAO",
+                                                                          "Body":  "Claude Code - O Claude esta esperando sua intervencao.",
+                                                                          "Priority":  "high",
+                                                                          "Tags":  "warning,robot_face"
+                                                                      },
+                  "unrelated|pt-BR|sendProjectName=False|error":  {
+                                                                      "Title":  "Claude Code - ERRO",
+                                                                      "Body":  "Claude Code - O Claude interrompeu o trabalho.",
+                                                                      "Priority":  "high",
+                                                                      "Tags":  "x,robot_face"
+                                                                  }
+              }
+}
