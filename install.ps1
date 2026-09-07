@@ -17,10 +17,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$AgentChimeVersion = '0.1.0'
+$AgentChimeVersion = '0.2.0'
 
 if ($env:OS -ne 'Windows_NT') {
-    throw 'AgentChime v0.1 currently supports Windows only.'
+    throw 'AgentChime currently supports Windows only.'
 }
 
 if ($EnableMobile -and $DisableMobile) {

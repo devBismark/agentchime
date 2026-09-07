@@ -1,6 +1,6 @@
 # How AgentChime works
 
-AgentChime v0.1 is deliberately small.
+AgentChime v0.2 is deliberately small.
 
 ## Event flow
 

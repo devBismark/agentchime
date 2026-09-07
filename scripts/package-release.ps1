@@ -20,8 +20,18 @@ $hashPath = Join-Path $OutputDir "agentchime-v$version.sha256"
 try {
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
 
+    # The archive is built from a working copy, so exclude everything that
+    # belongs to this machine rather than to the release: version control, build
+    # output, editor and tool state, logs, and any configuration a maintainer
+    # may have left in the folder. An unknown dotted directory is excluded on
+    # purpose; a release file that needs one has to be named here explicitly.
+    $keepDotted = @('.github', '.gitignore')
+    $excluded = @('.git', 'dist', 'node_modules', 'config.json')
+
     Get-ChildItem -Path $root -Force | Where-Object {
-        $_.Name -notin @('.git', 'dist')
+        $_.Name -notin $excluded -and
+        $_.Extension -ne '.log' -and
+        -not ($_.Name.StartsWith('.') -and $_.Name -notin $keepDotted)
     } | ForEach-Object {
         Copy-Item $_.FullName -Destination $staging -Recurse -Force
     }

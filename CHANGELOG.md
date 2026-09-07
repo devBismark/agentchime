@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+Nothing. Active development is paused after 0.2.0. See
+[docs/ROADMAP.md](docs/ROADMAP.md) for what remains as future work.
+
+## 0.2.0 - 2026-09-07
+
+Published as
+[v0.2.0](https://github.com/devBismark/agentchime/releases/tag/v0.2.0).
+
+### Changed
+
+- an agent event is normalized once, at the boundary, before anything renders
+  or delivers it. Claude Code's payload is parsed in one adapter; the renderer
+  and both delivery paths read a provider-neutral event instead of the vendor
+  payload. Messages are unchanged, which the 72-case snapshot in
+  `tests/fixtures/baseline-messages.json` pins
+
+### Fixed
+
+- hook handlers are matched on a normalized path key, so the same notifier
+  spelled with forward slashes, with a trailing separator, in quotes or in a
+  different case is recognised as one handler by the installer, the uninstaller
+  and `doctor`. A handler that names a second script as well is reported as
+  ambiguous rather than counted as healthy, and a reinstall replaces it
+- `notify.ps1.bak`, and any longer name ending in the notifier's, are no longer
+  claimed as AgentChime's
+
 ### Added
 
 - elapsed turn time in the notification body, for example `(18m 42s)` in English

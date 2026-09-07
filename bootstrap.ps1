@@ -17,7 +17,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 if ($env:OS -ne 'Windows_NT') {
-    throw 'AgentChime v0.1 currently supports Windows only.'
+    throw 'AgentChime currently supports Windows only.'
 }
 
 $Repository = 'devBismark/agentchime'

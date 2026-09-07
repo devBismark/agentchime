@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/devBismark/agentchime/releases/tag/v0.1.0"><img alt="Release" src="https://img.shields.io/badge/release-v0.1.0-10d9e8?style=for-the-badge"></a>
+  <a href="https://github.com/devBismark/agentchime/releases/tag/v0.2.0"><img alt="Release" src="https://img.shields.io/badge/release-v0.2.0-10d9e8?style=for-the-badge"></a>
   <a href="https://github.com/devBismark/agentchime/actions/workflows/powershell.yml"><img alt="PowerShell validation" src="https://img.shields.io/github/actions/workflow/status/devBismark/agentchime/powershell.yml?style=for-the-badge&label=validation"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-7c5cff?style=for-the-badge"></a>
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-10d9e8?style=for-the-badge&logo=windows11&logoColor=white">
@@ -333,15 +333,18 @@ The uninstaller backs up Claude settings first and removes only handlers pointin
 - [x] safe migration + idempotent installer
 - [x] diagnostics + safe uninstall
 - [x] one-command remote bootstrap
-- [ ] elapsed task / turn duration
-- [ ] richer project context
+- [x] elapsed task / turn duration
+- [x] richer project context
+- [x] configurable notification detail
 - [ ] first-class `agentchime` command on PATH
 - [ ] Codex adapter
 - [ ] additional AI coding agents
 - [ ] more mobile providers
 - [ ] signed / reproducible release artifacts
 
-See the full [roadmap](docs/ROADMAP.md).
+Everything above the divide shipped in v0.2.0. Active development is paused
+there; the unchecked items are future work, taken up on demand rather than on a
+schedule. See the full [roadmap](docs/ROADMAP.md).
 
 ---
 

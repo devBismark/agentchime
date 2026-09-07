@@ -12,7 +12,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$AgentChimeVersion = '0.1.0'
+$AgentChimeVersion = '0.2.0'
 $InstallDir = Join-Path $HOME '.agentchime'
 $ConfigPath = Join-Path $InstallDir 'config.json'
 $NotifyPath = Join-Path $InstallDir 'notify.ps1'

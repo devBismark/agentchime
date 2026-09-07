@@ -1,5 +1,72 @@
 # Release checklist
 
+## v0.2.0
+
+Development status: **paused after v0.2.0**. The list below closes the version;
+nothing further is scheduled.
+
+### Regression
+
+- [x] every suite in `tests/` re-run from the final code, not from earlier results
+- [x] repository validation passes
+- [x] install, reinstall and both uninstall modes pass in a disposable HOME
+- [x] hook handler matching contract passes, with mutation controls
+- [x] normalized event boundary holds and the message snapshot still matches
+- [x] duration, concurrency and orphan cleanup pass
+- [x] detail level passes at both levels in both locales
+- [x] project label resolution passes across every topology
+- [x] privacy and leak suites pass
+- [x] desktop and ntfy payload contracts pass
+- [x] English and Brazilian Portuguese render every state
+- [x] mutation controls kill a deliberately broken copy of the code
+
+### Local installation
+
+- [x] local installation synced to the released code
+- [x] locale, detail level, elapsed-time preference, mobile state, ntfy server, topic and privacy flags preserved
+- [x] unrelated Claude settings preserved
+- [x] Claude settings backed up before rewriting
+- [x] four hooks registered exactly once each
+- [x] `./agentchime.ps1 doctor` returns `PASS`
+- [x] live desktop and ntfy delivery of all three states
+
+### Version and documentation
+
+- [x] `VERSION` reads `0.2.0`
+- [x] installer, CLI and example configuration state the same version
+- [x] README release badge points at the tag
+- [x] changelog carries a dated `0.2.0` section and an empty `Unreleased`
+- [x] roadmap marks 0.1 and 0.2 shipped and the remainder as future work
+- [x] roadmap records the development pause
+- [x] release notes written and free of claims the release does not deliver
+- [x] no file carries a private ntfy topic
+
+### Release artifacts
+
+- [x] archive rebuilt from the released code, not reused from v0.1
+- [x] SHA-256 recomputed rather than read back from the checksum file
+- [x] archive carries no repository, build, editor or local configuration file
+- [x] archive's own `VERSION` matches the label
+
+### GitHub release
+
+The items above are what this commit records. Publication happens after it, in
+this order, and its record is the release itself rather than a box ticked here
+in advance:
+
+1. push the release commit to `main`;
+2. wait for remote CI to conclude success on that exact commit;
+3. create the annotated `v0.2.0` tag on it and push the tag;
+4. publish a public release — not a draft, not a prerelease — with the archive
+   and the checksum attached;
+5. re-download the published archive and confirm its digest matches the one
+   audited locally.
+
+`scripts/publish-github.ps1` performs steps 3 to 4. It refuses a dirty tree, a
+branch other than `main`, and a release tag that already exists.
+
+---
+
 ## Underlying notifier validation
 
 - [x] Windows desktop completion notification

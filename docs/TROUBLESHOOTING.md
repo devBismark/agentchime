@@ -79,7 +79,7 @@ Then:
 
 ## Doctor reports duplicate AgentChime hooks
 
-Re-run the installer. v0.1.0 repairs duplicates that target `~/.agentchime/notify.ps1` before registering the current handlers.
+Re-run the installer. It repairs duplicates that target `~/.agentchime/notify.ps1` before registering the current handlers, whichever way each one spells the path.
 
 ## settings.json already has other hooks
 
@@ -93,7 +93,7 @@ Backups live in:
 
 ## Reinstall changed my mobile configuration
 
-v0.1.0 preserves the current locale, mobile state, ntfy server, and topic unless you explicitly override them.
+A reinstall preserves the current locale, notification detail level, elapsed-time preference, mobile state, ntfy server, and topic unless you explicitly override them.
 
 To disable mobile intentionally:
 

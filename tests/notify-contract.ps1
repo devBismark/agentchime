@@ -23,8 +23,9 @@ $FixturePath = Join-Path $PSScriptRoot 'fixtures\baseline-messages.json'
 # point: elapsed time must be additive, not a rewrite.
 $FixtureCommit = '1d63f8fba1ddfab204d8d19436b8c872b0b0d812'
 
-# The commit this step started from. Scope is measured against it.
-$StepBaselineCommit = 'd8eb558ffcdd30af41f60b60bdcc926fa2c5d899'
+# The commit v0.2 was feature-complete at. Release scope is measured against it,
+# so closing the version can be shown to have added no behaviour of its own.
+$ReleaseBaselineCommit = '8c5d5b210cce2a5c6154284733e48169b8095403'
 
 # The probe used by the detail suite's mutation controls.
 $ProbePath = Join-Path $PSScriptRoot 'mutation-probe.ps1'
@@ -854,37 +855,58 @@ function Invoke-NtfySuite {
 function Invoke-ScopeSuite {
     Push-Location $RepoRoot
     try {
-        $changed = @(& git diff --name-only $StepBaselineCommit -- . | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $changed = @(& git diff --name-only $ReleaseBaselineCommit -- . | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         $untracked = @(& git ls-files --others --exclude-standard | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         $touched = @($changed + $untracked | Sort-Object -Unique)
 
-        # Non-vacuous: this step must actually have changed the notifier and
-        # brought its own contract with it.
-        Assert-That ($touched -contains 'src/notify.ps1') 'this step touched src/notify.ps1'
-        Assert-That ($touched -contains 'tests/project-label-contract.ps1') 'this step brought a project label contract'
-        Assert-That ($touched -contains 'tests/label-probe.ps1') 'this step brought the probe its mutation controls run'
-        Assert-That ($touched.Count -ge 4) 'this step touched the notifier, its contract and its documentation'
+        # Non-vacuous: closing the release must actually have moved the version,
+        # the changelog, the roadmap and the release notes.
+        Assert-That ($touched -contains 'VERSION') 'the release touched VERSION'
+        Assert-That ($touched -contains 'CHANGELOG.md') 'the release touched CHANGELOG.md'
+        Assert-That ($touched -contains 'docs/ROADMAP.md') 'the release touched the roadmap'
+        Assert-That ($touched -contains 'RELEASE_NOTES_v0.2.0.md') 'the release brought its own notes'
 
-        $allowed = '^(src/notify\.ps1|install\.ps1|bootstrap\.ps1|agentchime\.ps1|config\.example\.json|CHANGELOG\.md|README\.md|tests/.*|docs/.*|\.github/workflows/powershell\.yml)$'
+        $allowed = '^(VERSION|install\.ps1|bootstrap\.ps1|agentchime\.ps1|config\.example\.json|CHANGELOG\.md|README\.md|RELEASE_NOTES_v0\.2\.0\.md|scripts/package-release\.ps1|tests/.*|docs/.*|\.github/workflows/powershell\.yml)$'
         foreach ($path in $touched) {
             Assert-That ($path -match $allowed) "touched path stays in scope: $path"
         }
 
-        # Control: the same filter must reject a path this step has no business
+        # Control: the same filter must reject a path the release has no business
         # writing, otherwise every result above would pass vacuously.
-        Assert-That (-not ('uninstall.ps1' -match $allowed)) 'scope filter control rejects an out-of-scope path'
-        Assert-That (-not ('VERSION' -match $allowed)) 'scope filter control rejects the version file'
+        Assert-That (-not ('src/notify.ps1' -match $allowed)) 'release scope filter control rejects the notifier'
+        Assert-That (-not ('uninstall.ps1' -match $allowed)) 'release scope filter control rejects the uninstaller'
 
-        # Frozen files must be byte-identical to the commit this step started from.
-        $frozen = @('VERSION', 'uninstall.ps1', 'LICENSE', 'RELEASE_NOTES_v0.1.0.md', 'scripts/package-release.ps1')
+        # Frozen files must be byte-identical to the feature-complete commit.
+        # The notifier and the message snapshot heading that list is the point:
+        # closing v0.2 changed no notification behaviour.
+        $frozen = @('src/notify.ps1', 'tests/fixtures/baseline-messages.json', 'uninstall.ps1', 'LICENSE', 'RELEASE_NOTES_v0.1.0.md')
         foreach ($file in $frozen) {
-            $diff = @(& git diff --name-only $StepBaselineCommit -- $file | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            $diff = @(& git diff --name-only $ReleaseBaselineCommit -- $file | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
             Assert-Equal '' ($diff -join ',') "frozen file unchanged: $file"
         }
 
-        Assert-Equal '0.1.0' ((Get-Content (Join-Path $RepoRoot 'VERSION') -Raw).Trim()) 'VERSION is untouched'
+        Assert-Equal '0.2.0' ((Get-Content (Join-Path $RepoRoot 'VERSION') -Raw).Trim()) 'VERSION reads 0.2.0'
 
-        # The features this step is explicitly not allowed to start. Each is
+        # The three entry-point scripts did change, so say exactly how. Applying
+        # the two intended edits to the feature-complete text must reproduce the
+        # working tree byte for byte; anything else in them is out of scope.
+        $intended = @(
+            @{ From = "`$AgentChimeVersion = '0.1.0'"; To = "`$AgentChimeVersion = '0.2.0'" },
+            @{ From = "'AgentChime v0.1 currently supports Windows only.'"; To = "'AgentChime currently supports Windows only.'" }
+        )
+        foreach ($file in @('install.ps1', 'agentchime.ps1', 'bootstrap.ps1')) {
+            $baseline = ((& git show "${ReleaseBaselineCommit}:$file") -join "`n")
+            $current = ((Get-Content (Join-Path $RepoRoot $file) -Raw) -replace "`r", '').TrimEnd("`n")
+            $rewritten = $baseline
+            foreach ($edit in $intended) { $rewritten = $rewritten.Replace($edit.From, $edit.To) }
+            Assert-Equal $rewritten.TrimEnd("`n") $current "$file changed only its version constant and its platform message"
+
+            # Control: without the rewrite the comparison must fail, otherwise
+            # the equality above would hold for an unchanged file too.
+            Assert-That ($baseline.TrimEnd("`n") -ne $current) "control: $file really did change"
+        }
+
+        # The features this release is explicitly not allowed to start. Each is
         # searched for as a working-tree identifier, not as prose.
         $excluded = [ordered]@{
             'notification history'      = 'notificationHistory|notification-history|Add-NotificationHistory'
@@ -909,7 +931,7 @@ function Invoke-ScopeSuite {
         Pop-Location
     }
 
-    Complete-Suite 'scope' 25
+    Complete-Suite 'scope' 30
 }
 
 # --------------------------------------------------------------------------

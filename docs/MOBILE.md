@@ -1,6 +1,6 @@
 # Mobile notifications
 
-AgentChime v0.1 uses ntfy as the default mobile provider because publishing can be done with a single HTTP request and the phone apps are open source.
+AgentChime uses ntfy as the default mobile provider because publishing can be done with a single HTTP request and the phone apps are open source.
 
 ## Setup
 
@@ -32,10 +32,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -EnableMob
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -EnableMobile -NtfyServer "https://ntfy.example.com" -NtfyTopic "agentchime"
 ```
 
-If the server requires authentication, v0.1 does not yet provide a credential-management UX. Use the roadmap/authenticated-provider work before using AgentChime with protected production infrastructure.
+If the server requires authentication, AgentChime does not yet provide a credential-management UX. Use the roadmap/authenticated-provider work before using AgentChime with protected production infrastructure.
 
 ## Privacy rule
 
-Do not put prompts, code, secrets, customer data, or full Claude output into public ntfy payloads. AgentChime v0.1 intentionally avoids those fields.
+Do not put prompts, code, secrets, customer data, or full Claude output into public ntfy payloads. AgentChime intentionally avoids those fields.
 
 Official ntfy phone documentation: https://docs.ntfy.sh/subscribe/phone/

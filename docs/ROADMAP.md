@@ -1,5 +1,12 @@
 # Roadmap
 
+> **Development status: paused after v0.2.0.**
+>
+> v0.2 is a deliberate stopping point, not an abandoned one. Everything below
+> 0.2 has shipped. Everything below that line is future work, taken up on
+> demand — real usage, feedback, issues or a decision to resume — rather than on
+> a schedule. Nothing in the repository is being built towards it today.
+
 ## 0.1 — Call me when you're done
 
 - [x] Claude Code + Windows
@@ -16,9 +23,23 @@ Shipped as [v0.1.0](https://github.com/devBismark/agentchime/releases/tag/v0.1.0
 
 ## 0.2 — Context
 
-- elapsed task/turn time
-- smarter project labels
-- configurable notification detail (shipped: `detailLevel`, `standard` and `minimal`)
+- [x] safer hook handler matching, independent of how a path is spelled
+- [x] provider-neutral normalized agent event at the boundary
+- [x] elapsed task/turn time
+- [x] configurable notification detail (`detailLevel`, `standard` and `minimal`)
+- [x] smarter project labels, resolved from the enclosing repository
+
+Shipped as [v0.2.0](https://github.com/devBismark/agentchime/releases/tag/v0.2.0) on 2026-09-07.
+
+---
+
+## Future work — on demand
+
+Everything below this line is unstarted and unscheduled. No preparatory code for
+it exists in the repository.
+
+## 0.2.1 — Deferred from 0.2
+
 - notification history
 - stronger mobile authentication options
 

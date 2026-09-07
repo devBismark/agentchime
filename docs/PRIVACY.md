@@ -2,7 +2,7 @@
 
 AgentChime's mobile mode forwards a small status message to the configured ntfy server.
 
-## v0.1 payload policy
+## Payload policy
 
 Allowed by default:
 
