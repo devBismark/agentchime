@@ -9,8 +9,10 @@
 - [x] diagnostics and clean uninstall
 - [x] remote bootstrap installer
 - [x] pre-publication migration path
-- [ ] final AgentChime migration validation on Windows
-- [ ] first public GitHub release
+- [x] final AgentChime migration validation on Windows
+- [x] first public GitHub release
+
+Shipped as [v0.1.0](https://github.com/devBismark/agentchime/releases/tag/v0.1.0) on 2026-08-28.
 
 ## 0.2 — Context
 

@@ -2,7 +2,8 @@
 
 ## 0.1.0 - 2026-08-29
 
-First public release candidate.
+First public release. Published as
+[v0.1.0](https://github.com/devBismark/agentchime/releases/tag/v0.1.0).
 
 ### Added
 
@@ -32,4 +33,6 @@ First public release candidate.
 
 ### Validation status
 
-The underlying notifier flow has been validated on a real Windows + Claude Code + ntfy workflow. The renamed AgentChime migration build must pass the final local migration test before the public GitHub release is tagged.
+The notifier flow was validated on a real Windows + Claude Code + ntfy workflow before packaging, and the renamed AgentChime build passed its migration test on Windows ahead of tagging.
+
+A post-release audit re-exercised the shipped scripts against throwaway home directories: install, reinstall, hook idempotency, preservation of unrelated Claude hooks, settings backups, both uninstall modes, `doctor`, live ntfy delivery in both locales, and remote bootstrap from the published tag. See [docs/VALIDATION.md](docs/VALIDATION.md) for what is exercised versus what is only structurally supported.
