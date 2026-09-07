@@ -141,7 +141,7 @@ switch ($Command) {
         if (Test-Path $SettingsPath) {
             try {
                 $settings = Get-Content $SettingsPath -Raw | ConvertFrom-Json
-                $expectedEvents = @('Stop', 'StopFailure', 'Notification')
+                $expectedEvents = @('UserPromptSubmit', 'Stop', 'StopFailure', 'Notification')
                 $missingEvents = @()
                 $duplicateEvents = @()
                 $ambiguousEvents = @()
@@ -154,7 +154,7 @@ switch ($Command) {
                 }
 
                 if ($missingEvents.Count -eq 0 -and $duplicateEvents.Count -eq 0 -and $ambiguousEvents.Count -eq 0) {
-                    Write-Host '[OK] Claude hooks reference AgentChime exactly once (Stop, StopFailure, Notification)' -ForegroundColor Green
+                    Write-Host '[OK] Claude hooks reference AgentChime exactly once (UserPromptSubmit, Stop, StopFailure, Notification)' -ForegroundColor Green
                 }
                 else {
                     if ($missingEvents.Count -gt 0) {

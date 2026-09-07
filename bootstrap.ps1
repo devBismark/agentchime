@@ -6,6 +6,8 @@ param(
     [string]$NtfyServer = '',
     [ValidateSet('', 'en', 'pt-BR')]
     [string]$Locale = '',
+    [switch]$EnableDuration,
+    [switch]$DisableDuration,
     [switch]$MigratePrototype,
     [switch]$MigrateTaskChime,
     [string]$Ref = 'main'
@@ -49,6 +51,8 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($NtfyTopic)) { $installArgs.NtfyTopic = $NtfyTopic }
     if (-not [string]::IsNullOrWhiteSpace($NtfyServer)) { $installArgs.NtfyServer = $NtfyServer }
     if (-not [string]::IsNullOrWhiteSpace($Locale)) { $installArgs.Locale = $Locale }
+    if ($EnableDuration) { $installArgs.EnableDuration = $true }
+    if ($DisableDuration) { $installArgs.DisableDuration = $true }
     if ($MigratePrototype) { $installArgs.MigratePrototype = $true }
     if ($MigrateTaskChime) { $installArgs.MigrateTaskChime = $true }
 

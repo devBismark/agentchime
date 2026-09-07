@@ -6,6 +6,8 @@ param(
     [string]$NtfyServer = '',
     [ValidateSet('', 'en', 'pt-BR')]
     [string]$Locale = '',
+    [switch]$EnableDuration,
+    [switch]$DisableDuration,
     [switch]$MigratePrototype,
     [switch]$MigrateTaskChime
 )
@@ -21,6 +23,10 @@ if ($env:OS -ne 'Windows_NT') {
 
 if ($EnableMobile -and $DisableMobile) {
     throw 'Use either -EnableMobile or -DisableMobile, not both.'
+}
+
+if ($EnableDuration -and $DisableDuration) {
+    throw 'Use either -EnableDuration or -DisableDuration, not both.'
 }
 
 $RepoDir = $PSScriptRoot
@@ -229,6 +235,21 @@ if ($null -ne $sourceConfig -and $sourceConfig.PSObject.Properties['privacy'] -a
     $sendProjectName = [bool]$sourceConfig.privacy.sendProjectName
 }
 
+# Elapsed turn time is on by default. An explicit switch wins, otherwise an
+# existing preference is preserved, so a reinstall never silently re-enables it.
+$sendDuration = if ($EnableDuration) {
+    $true
+}
+elseif ($DisableDuration) {
+    $false
+}
+elseif ($null -ne $sourceConfig -and $sourceConfig.PSObject.Properties['privacy'] -and $sourceConfig.privacy.PSObject.Properties['sendDuration']) {
+    [bool]$sourceConfig.privacy.sendDuration
+}
+else {
+    $true
+}
+
 # Optional migration from the earliest prototype built before the repository existed.
 $prototypeConfig = $null
 if ($MigratePrototype -and $null -eq $sourceConfig -and (Test-Path $PrototypeConfigPath)) {
@@ -274,6 +295,11 @@ if ($MigratePrototype) {
     Remove-HandlersForPath -Settings $settings -Path $PrototypeNotifyPath
 }
 
+# UserPromptSubmit is the only event that marks the beginning of a turn. Its
+# handler notifies nobody; it records the start that Stop and StopFailure
+# measure against. It is registered even when elapsed time is switched off, so
+# the setting can be changed in config.json without reinstalling.
+Add-Hook -Settings $settings -Event 'UserPromptSubmit' -State 'turn-start'
 Add-Hook -Settings $settings -Event 'Stop' -State 'finished'
 Add-Hook -Settings $settings -Event 'StopFailure' -State 'error'
 Add-Hook -Settings $settings -Event 'Notification' -State 'attention' -Matcher '^(permission_prompt|agent_needs_input|elicitation_dialog)$'
@@ -296,6 +322,7 @@ $config = [ordered]@{
     }
     privacy = [ordered]@{
         sendProjectName = $sendProjectName
+        sendDuration = $sendDuration
         sendPrompt = $false
         sendCode = $false
         sendAssistantOutput = $false
@@ -316,6 +343,12 @@ if ($migratingTaskChime) {
 }
 
 Write-Host 'Desktop notifications : ON' -ForegroundColor Green
+if ($sendDuration) {
+    Write-Host 'Elapsed turn time     : ON' -ForegroundColor Green
+}
+else {
+    Write-Host 'Elapsed turn time     : OFF' -ForegroundColor DarkGray
+}
 if ($mobileEnabled) {
     Write-Host 'Mobile notifications  : ON (ntfy)' -ForegroundColor Green
     Write-Host "ntfy server           : $($config.mobile.server)"

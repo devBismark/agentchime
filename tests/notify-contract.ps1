@@ -7,7 +7,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('normalize', 'baseline', 'locales', 'privacy', 'desktop', 'ntfy', 'scope', 'ci', 'contract')]
+    [ValidateSet('normalize', 'baseline', 'locales', 'privacy', 'desktop', 'ntfy', 'scope', 'clean', 'ci', 'contract')]
     [string]$Suite
 )
 
@@ -17,7 +17,14 @@ $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path $PSScriptRoot -Parent
 $NotifyPath = Join-Path $RepoRoot 'src\notify.ps1'
 $FixturePath = Join-Path $PSScriptRoot 'fixtures\baseline-messages.json'
-$BaselineCommit = '1d63f8fba1ddfab204d8d19436b8c872b0b0d812'
+
+# The commit the 72-case message snapshot was captured from, before the
+# normalization refactor. It still describes the messages exactly, which is the
+# point: elapsed time must be additive, not a rewrite.
+$FixtureCommit = '1d63f8fba1ddfab204d8d19436b8c872b0b0d812'
+
+# The commit this step started from. Scope is measured against it.
+$StepBaselineCommit = '41e4197dcfda2802eba3bebf98b617c1a06628b4'
 
 # Loads the functions only. The state argument satisfies the mandatory
 # parameter; the dot-source guard inside notify.ps1 suppresses the main flow.
@@ -88,8 +95,8 @@ function New-ClaudePayload([string]$Name) {
     return ($table | ConvertTo-Json -Compress | ConvertFrom-Json)
 }
 
-function Get-RenderedMessage([object]$Payload, [string]$State, [string]$Locale, [bool]$SendProjectName) {
-    $agentEvent = ConvertTo-AgentEvent -Payload $Payload -EventState $State -Locale $Locale -IncludeProjectLabel $SendProjectName
+function Get-RenderedMessage([object]$Payload, [string]$State, [string]$Locale, [bool]$SendProjectName, [object]$DurationMs = $null) {
+    $agentEvent = ConvertTo-AgentEvent -Payload $Payload -EventState $State -Locale $Locale -IncludeProjectLabel $SendProjectName -DurationMs $DurationMs
     return (Get-AgentMessage -AgentEvent $agentEvent)
 }
 
@@ -119,13 +126,34 @@ $script:ClaudeVocabulary = @(
     'cwd',
     'transcript_path',
     'session_id',
+    'prompt_id',
     'hook_event_name',
     'stop_hook_active',
     'Payload',
     'HookInput',
     'ClaudeHookPayload',
     'ClaudePayloadValue',
-    'ClaudeProjectLabel'
+    'ClaudeProjectLabel',
+    'ClaudeTurnIdentity'
+)
+
+# Every function that must stay provider-neutral: rendering, delivery, and the
+# whole turn-duration store, which is handed opaque keys rather than ids.
+$script:DownstreamFunctions = @(
+    'Get-AgentMessage',
+    'Get-DesktopStyle',
+    'Send-WindowsNotification',
+    'Send-NtfyNotification',
+    'Format-TurnDuration',
+    'Get-OpaqueKey',
+    'Get-TurnClockSample',
+    'ConvertFrom-TurnTimestamp',
+    'Measure-TurnDuration',
+    'Get-TurnStatePath',
+    'Save-TurnStart',
+    'Remove-TurnState',
+    'Resolve-TurnDuration',
+    'Remove-StaleTurnState'
 )
 
 # Returns which Claude-specific identifiers a block of script text mentions.
@@ -154,7 +182,7 @@ function Test-ReferencesVariable([object]$FunctionAst, [string]$VariableName) {
 # --------------------------------------------------------------------------
 
 function Invoke-NormalizeSuite {
-    $expectedFields = @('errorType', 'locale', 'projectLabel', 'provider', 'state')
+    $expectedFields = @('durationMs', 'errorType', 'locale', 'projectLabel', 'provider', 'state')
 
     # A. finished
     $a = ConvertTo-AgentEvent -Payload (New-ClaudePayload 'full') -EventState 'finished' -Locale 'en' -IncludeProjectLabel $true
@@ -197,8 +225,7 @@ function Invoke-NormalizeSuite {
     }
 
     # F. no downstream function mentions the Claude payload vocabulary.
-    $downstream = @('Get-AgentMessage', 'Get-DesktopStyle', 'Send-WindowsNotification', 'Send-NtfyNotification')
-    foreach ($name in $downstream) {
+    foreach ($name in $script:DownstreamFunctions) {
         $hits = @(Find-ClaudeVocabulary (Get-FunctionAst $name).Extent.Text)
         Assert-Equal '' ($hits -join ',') "F $name is free of Claude payload vocabulary"
     }
@@ -209,8 +236,34 @@ function Invoke-NormalizeSuite {
     Assert-That ($adapterHits -contains 'Payload') 'F control detects Payload inside the adapter'
     $labelHits = @(Find-ClaudeVocabulary (Get-FunctionAst 'Get-ClaudeProjectLabel').Extent.Text)
     Assert-That ($labelHits -contains 'cwd') 'F control detects cwd inside the adapter'
+    $identityHits = @(Find-ClaudeVocabulary (Get-FunctionAst 'Get-ClaudeTurnIdentity').Extent.Text)
+    Assert-That ($identityHits -contains 'session_id') 'F control detects session_id inside the adapter'
+    Assert-That ($identityHits -contains 'prompt_id') 'F control detects prompt_id inside the adapter'
 
-    Complete-Suite 'normalize' 30
+    # G. durationMs is optional, vendor neutral, and null without evidence.
+    foreach ($case in @('full', 'no-error', 'null', 'unrelated')) {
+        $g = ConvertTo-AgentEvent -Payload (New-ClaudePayload $case) -EventState 'finished' -Locale 'en' -IncludeProjectLabel $true
+        Assert-That ($null -eq $g.durationMs) "G $case has no duration when none was measured"
+    }
+
+    # The payload cannot supply one: only the caller can, and only within the
+    # plausible range.
+    $gPayload = ([ordered]@{ cwd = 'C:\dev\my-project'; duration_ms = 999; durationMs = 999 } | ConvertTo-Json -Compress | ConvertFrom-Json)
+    $gFromPayload = ConvertTo-AgentEvent -Payload $gPayload -EventState 'finished' -Locale 'en' -IncludeProjectLabel $true
+    Assert-That ($null -eq $gFromPayload.durationMs) 'G a duration in the payload is ignored'
+
+    $gMeasured = ConvertTo-AgentEvent -Payload (New-ClaudePayload 'full') -EventState 'finished' -Locale 'en' -IncludeProjectLabel $true -DurationMs 61000
+    Assert-Equal '61000' ([string]$gMeasured.durationMs) 'G a measured duration is carried through'
+
+    $gZero = ConvertTo-AgentEvent -Payload (New-ClaudePayload 'full') -EventState 'finished' -Locale 'en' -IncludeProjectLabel $true -DurationMs 0
+    Assert-Equal '0' ([string]$gZero.durationMs) 'G zero is a measurement, not an absence'
+
+    foreach ($rejected in @(-1, 86400001, 'not-a-number')) {
+        $gBad = ConvertTo-AgentEvent -Payload (New-ClaudePayload 'full') -EventState 'finished' -Locale 'en' -IncludeProjectLabel $true -DurationMs $rejected
+        Assert-That ($null -eq $gBad.durationMs) "G implausible duration '$rejected' is dropped"
+    }
+
+    Complete-Suite 'normalize' 50
 }
 
 # --------------------------------------------------------------------------
@@ -230,7 +283,7 @@ function Invoke-BaselineSuite {
     if (-not (Test-Path $FixturePath)) { throw "missing baseline fixture: $FixturePath" }
     $fixture = Get-Content $FixturePath -Raw | ConvertFrom-Json
 
-    Assert-Equal $BaselineCommit ([string]$fixture.baselineCommit) 'fixture records the pre-refactor commit'
+    Assert-Equal $FixtureCommit ([string]$fixture.baselineCommit) 'fixture records the pre-refactor commit'
 
     $cases = @($fixture.cases.PSObject.Properties)
     Assert-Equal '72' ([string]$cases.Count) 'baseline covers the full 72 case matrix'
@@ -260,7 +313,19 @@ function Invoke-BaselineSuite {
         Assert-Equal $field ((@(Compare-Message -Expected $sample -Actual $mutated)) -join ',') "comparator control rejects a mutated $field"
     }
 
-    Complete-Suite 'baseline' 78
+    # Equivalence control. Rendering the same case with a measured duration must
+    # differ from its baseline in the body alone. Without this, the 72 identical
+    # results above could equally mean the feature was never implemented.
+    foreach ($state in @('finished', 'attention', 'error')) {
+        foreach ($locale in @('en', 'pt-BR')) {
+            $plain = Get-RenderedMessage -Payload (New-ClaudePayload 'full') -State $state -Locale $locale -SendProjectName $true
+            $timed = Get-RenderedMessage -Payload (New-ClaudePayload 'full') -State $state -Locale $locale -SendProjectName $true -DurationMs 1122000
+            $timedDiffs = @(Compare-Message -Expected ([pscustomobject]$plain) -Actual $timed)
+            Assert-Equal 'Body' ($timedDiffs -join ',') "a measured duration changes only the body for $state/$locale"
+        }
+    }
+
+    Complete-Suite 'baseline' 85
 }
 
 # --------------------------------------------------------------------------
@@ -526,33 +591,91 @@ function Invoke-NtfySuite {
 function Invoke-ScopeSuite {
     Push-Location $RepoRoot
     try {
-        $changed = @(& git diff --name-only $BaselineCommit -- . | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $changed = @(& git diff --name-only $StepBaselineCommit -- . | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         $untracked = @(& git ls-files --others --exclude-standard | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         $touched = @($changed + $untracked | Sort-Object -Unique)
 
-        # Non-vacuous: this step must actually have changed the notifier.
-        Assert-That ($touched -contains 'src/notify.ps1') 'the refactor touched src/notify.ps1'
-        Assert-That ($touched.Count -ge 2) 'the refactor touched the notifier and its tests'
+        # Non-vacuous: this step must actually have changed the notifier and
+        # registered the start marker.
+        Assert-That ($touched -contains 'src/notify.ps1') 'this step touched src/notify.ps1'
+        Assert-That ($touched -contains 'install.ps1') 'this step touched install.ps1'
+        Assert-That ($touched.Count -ge 4) 'this step touched the notifier, the installer and their tests'
 
-        $allowed = '^(src/notify\.ps1|tests/.*|\.github/workflows/powershell\.yml)$'
+        $allowed = '^(src/notify\.ps1|install\.ps1|bootstrap\.ps1|agentchime\.ps1|config\.example\.json|CHANGELOG\.md|README\.md|tests/.*|docs/.*|\.github/workflows/powershell\.yml)$'
         foreach ($path in $touched) {
             Assert-That ($path -match $allowed) "touched path stays in scope: $path"
         }
 
-        # Frozen files must be byte-identical to the pre-refactor commit.
-        $frozen = @('VERSION', 'install.ps1', 'bootstrap.ps1', 'uninstall.ps1', 'agentchime.ps1', 'config.example.json', 'RELEASE_NOTES_v0.1.0.md', 'CHANGELOG.md')
+        # Control: the same filter must reject a path this step has no business
+        # writing, otherwise every result above would pass vacuously.
+        Assert-That (-not ('uninstall.ps1' -match $allowed)) 'scope filter control rejects an out-of-scope path'
+        Assert-That (-not ('VERSION' -match $allowed)) 'scope filter control rejects the version file'
+
+        # Frozen files must be byte-identical to the commit this step started from.
+        $frozen = @('VERSION', 'uninstall.ps1', 'LICENSE', 'RELEASE_NOTES_v0.1.0.md', 'scripts/package-release.ps1')
         foreach ($file in $frozen) {
-            $diff = @(& git diff --name-only $BaselineCommit -- $file | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            $diff = @(& git diff --name-only $StepBaselineCommit -- $file | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
             Assert-Equal '' ($diff -join ',') "frozen file unchanged: $file"
         }
 
         Assert-Equal '0.1.0' ((Get-Content (Join-Path $RepoRoot 'VERSION') -Raw).Trim()) 'VERSION is untouched'
+
+        # The features this step is explicitly not allowed to start. Each is
+        # searched for as a working-tree identifier, not as prose.
+        $excluded = [ordered]@{
+            'notification history' = 'notificationHistory|notification-history|Add-NotificationHistory'
+            'mobile auth'          = 'Authorization\s*=|ntfyToken|accessToken'
+            'a command line tool'  = 'function\s+Invoke-AgentChimeCli|agentchime-cli'
+            'codex support'        = 'ConvertTo-CodexEvent|Get-CodexPayloadValue|provider\s*=\s*.codex'
+        }
+        $sources = @('src/notify.ps1', 'install.ps1', 'agentchime.ps1', 'uninstall.ps1', 'bootstrap.ps1')
+        $sourceText = (@($sources | ForEach-Object { Get-Content (Join-Path $RepoRoot $_) -Raw }) -join "`n")
+        foreach ($feature in $excluded.Keys) {
+            Assert-That (-not [regex]::IsMatch($sourceText, $excluded[$feature])) "out-of-scope feature absent: $feature"
+        }
+
+        # Control: the same detector must find something that is present.
+        Assert-That ([regex]::IsMatch($sourceText, 'Resolve-TurnDuration')) 'exclusion detector control finds a symbol that is present'
     }
     finally {
         Pop-Location
     }
 
-    Complete-Suite 'scope' 12
+    Complete-Suite 'scope' 25
+}
+
+# --------------------------------------------------------------------------
+# Suite: clean
+# --------------------------------------------------------------------------
+
+function Invoke-CleanSuite {
+    Push-Location $RepoRoot
+    try {
+        $status = @(& git status --porcelain | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        Assert-Equal '' ($status -join '; ') 'the working tree has no modified, staged or untracked files'
+
+        $branch = (& git rev-parse --abbrev-ref HEAD).Trim()
+        Assert-Equal 'main' $branch 'work is on main'
+
+        $ahead = @(& git rev-list --count "origin/main..HEAD")
+        Assert-Equal '0' (($ahead -join '').Trim()) 'HEAD is pushed to origin/main'
+
+        # Control: git status must be able to report something, so prove the
+        # parser sees a deliberately created file before it is removed again.
+        $probe = Join-Path $RepoRoot 'scope-probe.tmp'
+        Set-Content -Path $probe -Value 'probe' -Encoding UTF8
+        $dirty = @(& git status --porcelain | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        Remove-Item -Path $probe -Force
+        Assert-That ($dirty.Count -eq 1) 'cleanliness control detects a deliberately dirty tree'
+
+        $restored = @(& git status --porcelain | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        Assert-Equal '' ($restored -join '; ') 'the control file was removed again'
+    }
+    finally {
+        Pop-Location
+    }
+
+    Complete-Suite 'clean' 5
 }
 
 # --------------------------------------------------------------------------
@@ -605,6 +728,7 @@ switch ($Suite) {
     'desktop'   { Invoke-DesktopSuite }
     'ntfy'      { Invoke-NtfySuite }
     'scope'     { Invoke-ScopeSuite }
+    'clean'     { Invoke-CleanSuite }
     'ci'        { Invoke-CiSuite }
     'contract'  {
         Invoke-NormalizeSuite
@@ -616,3 +740,6 @@ switch ($Suite) {
         Write-Host 'SUITE contract: PASS' -ForegroundColor Green
     }
 }
+
+# git and gh run as child processes, so say so explicitly.
+exit 0

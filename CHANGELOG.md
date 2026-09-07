@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- elapsed turn time in the notification body, for example `(18m 42s)` in English
+  and `(18min 42s)` in Brazilian Portuguese
+- Claude Code `UserPromptSubmit` -> turn start marker, which sends no
+  notification and only records when a turn began
+- `privacy.sendDuration` configuration key, with `-EnableDuration` and
+  `-DisableDuration` install switches; with it off, notifications are identical
+  to v0.1
+- `durationMs` on the normalized AgentEvent: optional, vendor neutral, and
+  absent whenever no trustworthy measurement exists
+
+### Notes
+
+- timings come from the performance counter, so moving the system clock cannot
+  change a reported figure
+- turn state lives in `~/.agentchime/turns/`, holds no prompt, output,
+  transcript, absolute path or readable identifier, and is removed by uninstall
+  including with `-KeepConfig`
+- `doctor` now also expects the `UserPromptSubmit` hook; rerun `install.ps1`
+  after upgrading
+
 ## 0.1.0 - 2026-08-29
 
 First public release. Published as

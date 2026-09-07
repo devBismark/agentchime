@@ -12,6 +12,7 @@
   },
   "privacy": {
     "sendProjectName": true,
+    "sendDuration": true,
     "sendPrompt": false,
     "sendCode": false,
     "sendAssistantOutput": false

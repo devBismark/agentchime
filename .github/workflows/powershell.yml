@@ -15,3 +15,9 @@ jobs:
       - name: Notifier contract tests
         shell: powershell
         run: .\tests\notify-contract.ps1 -Suite contract
+      - name: Turn duration contract tests
+        shell: powershell
+        run: .\tests\duration-contract.ps1 -Suite contract
+      - name: Install lifecycle tests
+        shell: powershell
+        run: .\tests\lifecycle-contract.ps1 -Suite lifecycle

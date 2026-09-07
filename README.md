@@ -105,9 +105,15 @@ Those hooks call the notifier installed at:
 
 | AgentChime state | Claude Code hook | Trigger |
 |---|---|---|
+| `turn-start` | `UserPromptSubmit` | You submit a prompt. Records when the turn began; sends no notification. |
 | `finished` | `Stop` | Claude finishes the turn normally. |
 | `attention` | `Notification` | Claude needs permission, background input, or MCP elicitation. |
 | `error` | `StopFailure` | The turn stops because of an API/model/service failure. |
+
+Finished and error notifications also report how long the turn took, for example
+`my-project - Claude finished the task. (18m 42s)`. Turn timing is on by default;
+install with `-DisableDuration`, or set `privacy.sendDuration` to `false` in
+`~/.agentchime/config.json`, to get the plain v0.1 wording back.
 
 AgentChime intentionally does **not** map `idle_prompt` to the attention state. `Stop` already sends the completion alert, and mapping both can create a delayed duplicate notification.
 
@@ -129,7 +135,7 @@ Expected result:
 AgentChime doctor
 [OK] notify.ps1 installed
 [OK] config.json readable
-[OK] Claude hooks reference AgentChime exactly once (Stop, StopFailure, Notification)
+[OK] Claude hooks reference AgentChime exactly once (UserPromptSubmit, Stop, StopFailure, Notification)
 [OK] ntfy server healthy
 Doctor result: PASS
 ```
@@ -188,6 +194,7 @@ When using public `ntfy.sh`, AgentChime sends only minimal status context:
 - current project folder name, if enabled
 - generic notification text
 - API error type when available
+- elapsed turn time, if enabled
 
 **Never sent by AgentChime**
 
